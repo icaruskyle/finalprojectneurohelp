@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
-const dummyUsername = "testuser";
-const dummyPassword = "12345";
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,74 +9,78 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
-  String? _errorMessage;
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   void _login() {
     String username = _usernameController.text.trim();
     String password = _passwordController.text.trim();
 
-    if (username == dummyUsername && password == dummyPassword) {
-
-      Navigator.pushReplacementNamed(context, '/dashboard');
+    if (username == "user" && password == "1234") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(username: username),
+        ),
+      );
     } else {
-
-      setState(() {
-        _errorMessage = "Invalid username or password!";
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid credentials")),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        title: const Text("Login"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: "Username",
-                border: OutlineInputBorder(),
-              ),
+      backgroundColor: Colors.deepPurple.shade50,
+      body: Center(
+        child: Card(
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.all(20),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Login",
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(
+                    labelText: "Username",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: "Password",
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _login,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50)),
+                  child: const Text("Login"),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Password",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text(
-                "Login",
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 20),
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
