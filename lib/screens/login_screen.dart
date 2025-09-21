@@ -2,84 +2,101 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  String? errorMessage;
 
   void _login() {
-    String username = _usernameController.text.trim();
-    String password = _passwordController.text.trim();
+    String username = usernameController.text.trim();
+    String password = passwordController.text.trim();
 
     if (username == "user" && password == "1234") {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(username: username),
-        ),
+        MaterialPageRoute(builder: (_) => DashboardScreen(username: username)),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid credentials")),
-      );
+      setState(() {
+        errorMessage = "Invalid username or password";
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade50,
+      backgroundColor: Colors.deepPurple[50],
       body: Center(
-        child: Card(
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-          margin: const EdgeInsets.all(20),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Login",
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.health_and_safety, size: 80, color: Colors.deepPurple),
+              SizedBox(height: 20),
+              Text(
+                "Welcome Back",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: "Username",
-                    border: OutlineInputBorder(),
+              ),
+              SizedBox(height: 30),
+
+              // Username field
+              TextField(
+                controller: usernameController,
+                decoration: InputDecoration(
+                  labelText: "Username",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              SizedBox(height: 16),
+
+              // Password field
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: Icon(Icons.lock),
+                ),
+              ),
+              SizedBox(height: 20),
+
+              if (errorMessage != null)
+                Text(
+                  errorMessage!,
+                  style: TextStyle(color: Colors.red),
+                ),
+
+              SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed: _login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  padding: EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(50)),
-                  child: const Text("Login"),
-                ),
-              ],
-            ),
+                child: Text("Login", style: TextStyle(fontSize: 18)),
+              ),
+            ],
           ),
         ),
       ),
