@@ -2,142 +2,106 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
-
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  _SignupScreenState createState() => _SignupScreenState();
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
-  bool _agree = false;
-
-  final _nameController = TextEditingController();
-  final _birthdayController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        title: const Text("Sign Up"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
+      backgroundColor: Colors.deepPurple[50],
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
           child: SingleChildScrollView(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: "Full Name",
-                    border: OutlineInputBorder(),
+                Icon(Icons.person_add, size: 80, color: Colors.deepPurple),
+                SizedBox(height: 20),
+                Text(
+                  "Create Account",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
                   ),
-                  validator: (value) =>
-                  value!.isEmpty ? "Enter your name" : null,
                 ),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _birthdayController,
-                  decoration: const InputDecoration(
-                    labelText: "Birthday",
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) =>
-                  value!.isEmpty ? "Enter your birthday" : null,
-                ),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: "Email",
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return "Enter your email";
-                    }
-                    if (!value.contains("@")) {
-                      return "Enter a valid email";
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
+                SizedBox(height: 30),
+
+                // Username field
+                TextField(
+                  controller: usernameController,
+                  decoration: InputDecoration(
                     labelText: "Username",
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: Icon(Icons.person),
                   ),
-                  validator: (value) =>
-                  value!.isEmpty ? "Enter your username" : null,
                 ),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _passwordController,
+                SizedBox(height: 16),
+
+                // Email field
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: "Email",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                ),
+                SizedBox(height: 16),
+
+                // Password field
+                TextField(
+                  controller: passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: "Password",
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: Icon(Icons.lock),
                   ),
-                  validator: (value) =>
-                  value!.isEmpty ? "Enter your password" : null,
                 ),
-                const SizedBox(height: 15),
-                CheckboxListTile(
-                  title: const Text("I agree to the Terms & Privacy"),
-                  value: _agree,
-                  onChanged: (value) {
-                    setState(() {
-                      _agree = value ?? false;
-                    });
-                  },
-                ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
+
                 ElevatedButton(
                   onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      if (!_agree) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("You must agree to continue"),
-                          ),
-                        );
-                        return;
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Signed up successfully")),
-                      );
-                    }
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => LoginScreen()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 15),
+                    padding: EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text("Sign Up"),
+                  child: Text("Sign Up", style: TextStyle(fontSize: 18)),
                 ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () {
+
+                SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      MaterialPageRoute(builder: (_) => LoginScreen()),
                     );
                   },
-                  child: const Text(
-                    "Have an account? Sign in",
-                    style: TextStyle(
-                      color: Colors.deepPurple,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Text(
+                    "Already have an account? Login",
+                    style: TextStyle(color: Colors.deepPurple),
                   ),
                 ),
               ],

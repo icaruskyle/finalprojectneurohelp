@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'daily_journal_screen.dart';
+import 'mood_updates_screen.dart';
+import 'music_screen.dart';
 import 'welcome_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
-
   const DashboardScreen({super.key, required this.username});
 
   @override
@@ -19,24 +21,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-
-  void _showComingSoon(String featureName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Coming Soon"),
-        content: Text("$featureName feature is under development."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
-
-
+  // 🔹 Home Tab
   Widget _buildHome() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -47,8 +32,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             "Welcome to NeuroHelp,\n${widget.username}",
             style: const TextStyle(
-              fontSize: 22,
-              color: Colors.black,
+              fontSize: 24,
+              color: Colors.deepPurple,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -59,10 +44,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                _buildHomeButton("Daily Journal"),
-                _buildHomeButton("Chat with Heneuro"),
-                _buildHomeButton("Mood Updates"),
-                _buildHomeButton("Listen to Music"),
+                _buildHomeButton("Daily Journal", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DailyJournalScreen(),
+                    ),
+                  );
+                }),
+                _buildHomeButton("Chat with Heneuro", () {
+                  setState(() {
+                    _selectedIndex = 2; // go to Heneuro tab
+                  });
+                }),
+                _buildHomeButton("Mood Updates", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MoodUpdatesScreen(),
+                    ),
+                  );
+                }),
+                _buildHomeButton("Listen to Music", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MusicScreen(),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -71,102 +81,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHomeButton(String title) {
-    return ElevatedButton(
-      onPressed: () {
-        _showComingSoon(title);
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+  Widget _buildHomeButton(String title, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.deepPurple.shade50,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurple.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-      ),
-      child: Center(
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-
-  Widget _buildExplore() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          TextField(
-            decoration: InputDecoration(
-              hintText: "Search...",
-              prefixIcon: const Icon(Icons.search),
-              border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        child: Center(
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.deepPurple,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
             ),
           ),
-          const SizedBox(height: 20),
-          _buildExploreButton("Breathing Exercises"),
-          _buildExploreButton("Mood Tracker"),
-          _buildExploreButton("Relaxing Sounds"),
-          _buildExploreButton("Helplines"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExploreButton(String title) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          _showComingSoon(title);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
         ),
-        child: Text(title),
       ),
     );
   }
 
+  // 🔹 Explore Tab
+  Widget _buildExplore() {
+    return const Center(
+      child: Text("Explore Coming Soon",
+          style: TextStyle(fontSize: 20, color: Colors.deepPurple)),
+    );
+  }
 
+  // 🔹 Heneuro Tab
   Widget _buildHeneuro() {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          _showComingSoon("Heneuro");
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
-          foregroundColor: Colors.white,
-        ),
-        child: const Text("Chat with Heneuro (Coming Soon)"),
-      ),
+    return const Center(
+      child: Text("Chat with Heneuro Coming Soon",
+          style: TextStyle(fontSize: 20, color: Colors.deepPurple)),
     );
   }
 
-
+  // 🔹 SnS Tab
   Widget _buildSnS() {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          _showComingSoon("Sleep n Sound");
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
-          foregroundColor: Colors.white,
-        ),
-        child: const Text("Sleep n Sound (Coming Soon)"),
-      ),
+    return const Center(
+      child: Text("Sleep n Sound Coming Soon",
+          style: TextStyle(fontSize: 20, color: Colors.deepPurple)),
     );
   }
 
-
+  // 🔹 Profile Tab
   Widget _buildProfile() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -178,6 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
+              color: Colors.deepPurple,
             ),
           ),
           const SizedBox(height: 20),
@@ -212,37 +182,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SnackBar(content: Text("Account Deleted (placeholder)")),
             );
           } else {
-            _showComingSoon(title);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("$title coming soon")),
+            );
           }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor:
-          isDelete ? Colors.red : Colors.deepPurple,
-          foregroundColor: Colors.white,
-          shape: const StadiumBorder(),
+          isDelete ? Colors.red : (isLogout ? Colors.deepPurple : Colors.white),
+          foregroundColor:
+          isDelete ? Colors.white : (isLogout ? Colors.white : Colors.deepPurple),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: isDelete || isLogout
+                ? BorderSide.none
+                : const BorderSide(color: Colors.deepPurple, width: 1.2),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
-        child: Text(title),
-      ),
-    );
-  }
-
-
-  BottomNavigationBarItem _navItem(IconData icon, String label, int index) {
-    final bool isSelected = _selectedIndex == index;
-    return BottomNavigationBarItem(
-      icon: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.deepPurple : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.all(6),
-        child: Icon(
-          icon,
-          color: isSelected ? Colors.white : Colors.deepPurple,
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
       ),
-      label: label,
     );
   }
 
@@ -263,14 +225,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.deepPurple,
-        backgroundColor: Colors.white,
-        items: [
-          _navItem(Icons.home, "Home", 0),
-          _navItem(Icons.explore, "Explore", 1),
-          _navItem(Icons.psychology, "Heneuro", 2),
-          _navItem(Icons.nights_stay, "SnS", 3),
-          _navItem(Icons.person, "Profile", 4),
+        unselectedItemColor: Colors.white70,
+        backgroundColor: Colors.deepPurple,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Explore"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.psychology), label: "Heneuro"),
+          BottomNavigationBarItem(icon: Icon(Icons.nights_stay), label: "SnS"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
     );
