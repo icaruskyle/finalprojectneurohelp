@@ -26,6 +26,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.person),
               ),
             ),
             const SizedBox(height: 20),
@@ -37,6 +38,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.person),
               ),
             ),
             const SizedBox(height: 20),
@@ -48,6 +50,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.email),
               ),
             ),
             const SizedBox(height: 20),
@@ -59,6 +62,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.numbers)
               ),
               keyboardType: TextInputType.number,
             ),
@@ -71,6 +75,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.calendar_month),
               ),
               keyboardType: TextInputType.datetime,
             ),
@@ -83,6 +88,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.person_2_outlined),
               ),
               items: const [
                 DropdownMenuItem(value: "Male", child: Text("Male")),
@@ -100,6 +106,7 @@ class PersonalInfoScreen extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                prefixIcon: Icon(Icons.contacts),
               ),
               keyboardType: TextInputType.phone,
             ),

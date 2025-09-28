@@ -60,6 +60,7 @@ class ChangePasswordScreen extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
               ),
               child: const Text("Update Password"),
             ),
