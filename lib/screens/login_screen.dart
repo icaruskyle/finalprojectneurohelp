@@ -89,21 +89,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _login,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
-                  padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 100, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   "Login",
                   style: TextStyle(
                     fontSize: 18,
-                    color: Colors.white, // 👈 force white text
-                    fontWeight: FontWeight.bold, // (optional) makes it stand out more
+                    color: Colors.white,
                   ),
                 ),
-              )
-
+              ),
             ],
           ),
         ),

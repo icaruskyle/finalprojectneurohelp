@@ -61,8 +61,11 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
             const SizedBox(height: 10),
             ElevatedButton(
               onPressed: _saveEntry,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
+              ),
               child: const Text("Save Entry"),
+
             ),
             const SizedBox(height: 20),
             Expanded(
