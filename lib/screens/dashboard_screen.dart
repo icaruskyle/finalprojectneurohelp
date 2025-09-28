@@ -193,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             "Daily Journal",
             Icons.book,
             "Write your thoughts and reflect daily.",
-            () {
+                () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -206,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             "Mood Tracker",
             Icons.mood,
             "Track your mood and emotions regularly.",
-            () {
+                () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -301,11 +301,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }),
         _buildProfileButton(Icons.self_improvement, "Self-Help Resources",
             onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SelfHelpScreen()),
-          );
-        }),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SelfHelpScreen()),
+              );
+            }),
         _buildProfileButton(Icons.feedback, "Feedback", onTap: () {
           Navigator.push(
             context,
@@ -334,7 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-              (route) => false,
+                  (route) => false,
             );
           } else if (isDelete) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -421,14 +421,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         floatingActionButton: _selectedIndex == 0
             ? FloatingActionButton(
-                backgroundColor: Colors.deepPurple,
-                child: const Icon(Icons.add),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Quick action coming soon")),
-                  );
-                },
-              )
+          backgroundColor: Colors.deepPurple,
+          child: const Icon(Icons.add),
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Quick action coming soon")),
+            );
+          },
+        )
             : null,
       ),
     );

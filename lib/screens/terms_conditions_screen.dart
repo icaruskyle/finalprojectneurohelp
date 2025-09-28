@@ -129,7 +129,7 @@ class TermsConditionsScreen extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                         ),
-                        Text("All app content (logo, design, AI features, text, etc.) belongs to NeuroHelp.\n"
+                        Text("All app content  (logo, design, AI features, text, etc.) belongs to NeuroHelp.\n"
 
                           "You may not copy, reproduce, or distribute materials without our permission.\n"),
 

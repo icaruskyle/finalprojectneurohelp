@@ -206,7 +206,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text("Sign Up", style: TextStyle(fontSize: 18)),
+                  child: Text("Sign Up", style: TextStyle(fontSize: 18,
+                    color: Colors.white, // 👈 force white text
+                    fontWeight: FontWeight.bold,)),
                 ),
 
                 SizedBox(height: 16),
