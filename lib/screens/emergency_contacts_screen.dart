@@ -48,12 +48,15 @@ class EmergencyContactsScreen extends StatelessWidget {
                   children: const [
                     Icon(Icons.local_hospital, color: Colors.deepPurple, size: 32),
                     SizedBox(width: 8),
-                    Text(
-                      "Mental Health Hotline in the Philippines",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+                    Expanded( // ✅ prevents overflow
+                      child: Text(
+                        "Mental Health Hotline in the Philippines",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
+                        softWrap: true,
                       ),
                     ),
                   ],
@@ -67,6 +70,7 @@ class EmergencyContactsScreen extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
+                  softWrap: true,
                 ),
                 const SizedBox(height: 20),
 
@@ -101,25 +105,27 @@ class EmergencyContactsScreen extends StatelessWidget {
                 _buildHotlineCard(
                   title: "NCMH Crisis Hotline",
                   numbers: [
-                    "02) 1553 (Luzon landline)",
+                    "(02) 1553 (Luzon landline)",
                     "0917-899-8727 (Globe)",
                     "0908-639-2672 (Smart)",
                   ],
-                  description: "An automated phone system will ask you to press 1 for English and press 2 for Filipino so they can connect you to a more suitable volunteer.\n\nSevere psychological and emotional distress, including suicidal ideations. The call will be recorded in accordance with the Data Privacy Act, but gave a reassurance that the conversation will be kept strictly private and confidential.",
+                  description:
+                  "An automated phone system will ask you to press 1 for English and press 2 for Filipino so they can connect you to a more suitable volunteer.\n\nSevere psychological and emotional distress, including suicidal ideations. The call will be recorded in accordance with the Data Privacy Act, but gave a reassurance that the conversation will be kept strictly private and confidential.",
                   link: "NCMH Crisis Hotline on Facebook.",
                 ),
 
                 const SizedBox(height: 25),
-                
+
                 _buildHotlineCard(
-                    title: "MentalHealth PH",
-                    numbers: [
-                      "(02) 1553",
-                      "(02) 7-989-8727",
-                      "0917-899-8727",
-                    ],
-                  link: " In Touch: Crisis Line on Facebook. ",
-                  description:"MentalHealthPH lies in giving faces and voices to those experiencing mental health concerns—from struggling with the reality of mental ill health, the stigma of needing and seeking help, as well as supporting the people they love."
+                  title: "MentalHealth PH",
+                  numbers: [
+                    "(02) 1553",
+                    "(02) 7-989-8727",
+                    "0917-899-8727",
+                  ],
+                  link: "https://www.facebook.com/mentalhealthph",
+                  description:
+                  "MentalHealthPH lies in giving faces and voices to those experiencing mental health concerns—from struggling with the reality of mental ill health, the stigma of needing and seeking help, as well as supporting the people they love.",
                 ),
 
                 const SizedBox(height: 25),
@@ -129,25 +135,24 @@ class EmergencyContactsScreen extends StatelessWidget {
                   numbers: [
                     "(02) 163 (Landline)",
                   ],
-                    link: "NCMH Crisis Hotline on Facebook.",
-                  description: "Bantay Bata 163 is primarily for parents and children with issues about domestic violence, sexual abuse, and other child-related concerns.",
-
+                  link: "https://www.abs-cbnfoundation.com/bantaybata163",
+                  description:
+                  "Bantay Bata 163 is primarily for parents and children with issues about domestic violence, sexual abuse, and other child-related concerns.",
                 ),
 
                 const SizedBox(height: 25),
 
                 _buildHotlineCard(
-                    title: "Suicide Crisis Lines",
-                    numbers: [
-                      "02) 8893-7603 (Landline)",
-                      "0917-8001123 (Globe)",
-                      "0917-8001123 (Sun)",
-                    ],
-                  link: " In Touch: Crisis Line on Facebook. ",
-                  description: "MentalHealthPH lies in giving faces and voices to those experiencing mental health concerns—from struggling with the reality of mental ill health, the stigma of needing and seeking help, as well as supporting the people they love.",
-
+                  title: "Suicide Crisis Lines",
+                  numbers: [
+                    "(02) 8893-7603 (Landline)",
+                    "0917-8001123 (Globe)",
+                    "0917-8001123 (Sun)",
+                  ],
+                  link: "https://www.facebook.com/InTouchCrisisLine",
+                  description:
+                  "MentalHealthPH lies in giving faces and voices to those experiencing mental health concerns—from struggling with the reality of mental ill health, the stigma of needing and seeking help, as well as supporting the people they love.",
                 ),
-
               ],
             ),
           ),
@@ -190,19 +195,23 @@ class EmergencyContactsScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: Colors.deepPurple,
             ),
+            softWrap: true,
           ),
           const SizedBox(height: 8),
           ...numbers.map((number) => Row(
             children: [
               const Icon(Icons.phone, color: Colors.deepPurple),
               const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _callNumber(number),
-                child: Text(
-                  number,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 14,
+              Expanded( // ✅ fixes overflow
+                child: GestureDetector(
+                  onTap: () => _callNumber(number),
+                  child: Text(
+                    number,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 14,
+                    ),
+                    softWrap: true,
                   ),
                 ),
               ),
@@ -216,12 +225,13 @@ class EmergencyContactsScreen extends StatelessWidget {
                 fontSize: 12,
                 color: Colors.black87,
               ),
+              softWrap: true,
             ),
           ],
           if (link != null) ...[
             const SizedBox(height: 10),
             GestureDetector(
-              onTap: () => _launchURL(link),
+              onTap: () => _launchURL(link!),
               child: const Text(
                 "View on Facebook",
                 style: TextStyle(

@@ -15,7 +15,7 @@ class TermsConditionsScreen extends StatelessWidget {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFB3E5FC), Color(0xFFE1BEE7)], // light blue → lavender
+            colors: [Color(0xFFB3E5FC), Color(0xFFE1BEE7)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -28,7 +28,8 @@ class TermsConditionsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: const [
-                    Text(
+                    Expanded(
+                    child: Text(
                         "Welcome to NeuroHelp. By using our app, you agree to follow these Terms & Conditions. "
                             "\nPlease read them carefully before using the service.\n",
                       style: TextStyle(
@@ -36,6 +37,7 @@ class TermsConditionsScreen extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: Colors.deepPurple,
                       ),
+                    ),
                     ),
                   ],
                 ),
