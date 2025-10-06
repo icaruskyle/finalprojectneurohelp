@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1082023733271",
+    "project_id": "neurohelp-95e92",
+    "storage_bucket": "neurohelp-95e92.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1082023733271:android:0578b6b7f47df2dd17d452",
+        "android_client_info": {
+          "package_name": "com.example.projects"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA29ske8F-9mEwHRr-tAZniy3gD7iTW8Bw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
