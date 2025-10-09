@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -11,19 +12,52 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
 
   String? errorMessage;
+  bool _isLoading = false;
 
-  void _login() {
+  Future<void> _login() async {
     String username = usernameController.text.trim();
     String password = passwordController.text.trim();
 
-    if (username == "user" && password == "1234") {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => DashboardScreen(username: username)),
-      );
-    } else {
+    if (username.isEmpty || password.isEmpty) {
       setState(() {
-        errorMessage = "Invalid username or password";
+        errorMessage = "Please enter username and password";
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      // ✅ Query Firestore to check if username & password match
+      final QuerySnapshot result = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .where('password', isEqualTo: password)
+          .limit(1)
+          .get();
+
+      if (result.docs.isNotEmpty) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DashboardScreen(username: username),
+          ),
+        );
+      } else {
+        setState(() {
+          errorMessage = "Invalid username or password";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Error logging in: $e";
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
       });
     }
   }
@@ -38,9 +72,9 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.health_and_safety, size: 80, color: Colors.deepPurple),
-              SizedBox(height: 20),
-              Text(
+              const Icon(Icons.health_and_safety, size: 80, color: Colors.deepPurple),
+              const SizedBox(height: 20),
+              const Text(
                 "Welcome Back",
                 style: TextStyle(
                   fontSize: 28,
@@ -48,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.deepPurple,
                 ),
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
 
               // Username field
               TextField(
@@ -58,10 +92,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  prefixIcon: Icon(Icons.person),
+                  prefixIcon: const Icon(Icons.person),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               // Password field
               TextField(
@@ -72,29 +106,31 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  prefixIcon: Icon(Icons.lock),
+                  prefixIcon: const Icon(Icons.lock),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               if (errorMessage != null)
                 Text(
                   errorMessage!,
-                  style: TextStyle(color: Colors.red),
+                  style: const TextStyle(color: Colors.red),
                 ),
 
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               ElevatedButton(
-                onPressed: _login,
+                onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
-                  padding: EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
                   "Login",
                   style: TextStyle(
                     fontSize: 18,
