@@ -33,9 +33,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _pageController.jumpToPage(index);
   }
 
-  // 🔹 Home Tab
+  // 🔹 HOME TAB
   Widget _buildHome() {
-    return Padding(
+    return Container(
+      color: const Color(0xFFF3E9FF), // Soft lavender background
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,33 +62,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                _buildHomeCard("Daily Journal", Icons.book, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const DailyJournalScreen(),
-                    ),
-                  );
-                }),
-                _buildHomeCard("Chat with Heneuro", Icons.psychology, () {
-                  _onItemTapped(2);
-                }),
-                _buildHomeCard("Mood Updates", Icons.mood, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MoodUpdatesScreen(),
-                    ),
-                  );
-                }),
-                _buildHomeCard("Listen to Music", Icons.music_note, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MusicScreen(),
-                    ),
-                  );
-                }),
+                // 🟣 Card with image - Daily Journal
+                _buildHomeCardWithImage(
+                  "Daily Journal",
+                  "assets/images/diary.png",
+                      () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DailyJournalScreen(),
+                      ),
+                    );
+                  },
+                ),
+
+                // 🟣 Card with image - Chat with Heneuro
+                _buildHomeCardWithImage(
+                  "Chat with Heneuro",
+                  "assets/images/chat.png",
+                      () {
+                    _onItemTapped(2);
+                  },
+                ),
+
+                // 🟣 Card with image - Mood Updates
+                _buildHomeCardWithImage(
+                  "Mood Updates",
+                  "assets/images/mood.png",
+                      () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MoodUpdatesScreen(),
+                      ),
+                    );
+                  },
+                ),
+
+                // 🟣 Card with image - Listen to Music
+                _buildHomeCardWithImage(
+                  "Listen to Music",
+                  "assets/images/music.png",
+                      () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MusicScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -96,7 +120,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHomeCard(String title, IconData icon, VoidCallback onTap) {
+  // 🔹 CARD with IMAGE (for all main features)
+  Widget _buildHomeCardWithImage(
+      String title, String imagePath, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -119,8 +145,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white),
-            const SizedBox(height: 10),
+            // 🖼️ Larger image display for all icons
+            Image.asset(
+              imagePath,
+              height: 100,
+              width: 100,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -136,7 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 🔹 Explore Tab
+  // 🔹 EXPLORE TAB
   Widget _buildExplore() {
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -173,7 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 🔹 Daily Journal + Mood Tracker Tab
+  // 🔹 Journal + Mood Tracker Tab
   Widget _buildJournalMood() {
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -237,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 🔹 Profile Tab
+  // 🔹 PROFILE TAB
   Widget _buildProfile() {
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -259,8 +291,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 30),
-
-        // ✅ working buttons only once
         _buildProfileButton(Icons.info, "Personal Information", onTap: () {
           Navigator.push(
             context,
@@ -291,8 +321,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(builder: (_) => const TermsConditionsScreen()),
           );
         }),
-
-        // ✅ extra profile features
         _buildProfileButton(Icons.contacts, "Emergency Contacts", onTap: () {
           Navigator.push(
             context,
@@ -312,7 +340,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaterialPageRoute(builder: (_) => const FeedbackScreen()),
           );
         }),
-
         _buildProfileButton(Icons.logout, "Logout", isLogout: true),
         _buildProfileButton(Icons.delete_forever, "Delete Account",
             isDelete: true),
@@ -425,7 +452,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: const Icon(Icons.add),
           onPressed: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Quick action coming soon")),
+              const SnackBar(
+                  content: Text("Quick action coming soon")),
             );
           },
         )
