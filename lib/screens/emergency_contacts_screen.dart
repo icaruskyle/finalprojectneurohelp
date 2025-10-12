@@ -231,7 +231,7 @@ class EmergencyContactsScreen extends StatelessWidget {
           if (link != null) ...[
             const SizedBox(height: 10),
             GestureDetector(
-              onTap: () => _launchURL(link!),
+              onTap: () => _launchURL(link),
               child: const Text(
                 "View on Facebook",
                 style: TextStyle(

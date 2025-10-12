@@ -4,6 +4,8 @@ import 'login_screen.dart';
 import 'welcome_screen.dart';
 
 class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
+
   @override
   _SignupScreenState createState() => _SignupScreenState();
 }
@@ -150,7 +152,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 20),
 
                 DropdownButtonFormField<String>(
-                  value: gender,
+                  initialValue: gender,
                   decoration: InputDecoration(
                     labelText: "Gender",
                     border: OutlineInputBorder(
