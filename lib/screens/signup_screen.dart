@@ -214,7 +214,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     _buildBirthdayField(),
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
-                      value: gender,
+                      initialValue: gender,
                       decoration: _inputDecoration("Gender", Icons.person_2),
                       items: const [
                         DropdownMenuItem(value: "Male", child: Text("Male")),

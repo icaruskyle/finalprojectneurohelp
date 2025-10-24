@@ -196,7 +196,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
                         // 👩 Gender Dropdown
                         DropdownButtonFormField<String>(
-                          value: gender,
+                          initialValue: gender,
                           dropdownColor: isDarkMode
                               ? const Color(0xFF2C2C2C)
                               : Colors.white,
