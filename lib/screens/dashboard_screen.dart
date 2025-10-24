@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'daily_journal_screen.dart';
 import 'mood_updates_screen.dart';
-import 'music_screen.dart';
+import 'music_screen.dart'; // ✅ Spotify-connected music screen
 import 'welcome_screen.dart';
-
-// ✅ new imports for the extra screens
 import 'emergency_contacts_screen.dart';
 import 'self_help_screen.dart';
 import 'feedback_screen.dart';
@@ -13,6 +11,9 @@ import 'account_settings_screen.dart';
 import 'data_privacy_screen.dart';
 import 'change_password_screen.dart';
 import 'terms_conditions_screen.dart';
+import 'articles_screen.dart';
+import 'events_screen.dart';
+import 'community_support_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -25,93 +26,89 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
+  bool _isDarkMode = false;
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
     _pageController.jumpToPage(index);
   }
 
-  // 🔹 HOME TAB
+  void _toggleDarkMode() {
+    setState(() => _isDarkMode = !_isDarkMode);
+  }
+
+  // ---------- Theme Colors ----------
+  Color get primary => Colors.deepPurple;
+  Color get background => _isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
+  Color get cardColor => _isDarkMode ? const Color(0xFF2C2C2E) : Colors.white;
+  Color get textPrimary => _isDarkMode ? Colors.white : Colors.deepPurple.shade900;
+  Color get textSecondary => _isDarkMode ? Colors.white70 : Colors.black87;
+  Color get accent => _isDarkMode ? Colors.purpleAccent : Colors.deepPurple;
+
+  // ---------- HOME TAB ----------
   Widget _buildHome() {
     return Container(
-      color: const Color(0xFFF3E9FF), // Soft lavender background
-      padding: const EdgeInsets.all(16.0),
+      color: background,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 30),
-          Text(
-            "Welcome to NeuroHelp,\n${widget.username}",
-            style: const TextStyle(
-              fontSize: 26,
-              color: Colors.deepPurple,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
           const SizedBox(height: 20),
-          const Text(
-            "Choose a feature below to get started:",
-            style: TextStyle(fontSize: 16, color: Colors.black54),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: primary.withOpacity(0.2),
+                child: Icon(Icons.person, color: accent, size: 35),
+              ),
+              const SizedBox(width: 15),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Welcome back,", style: TextStyle(color: textSecondary, fontSize: 16)),
+                  Text(
+                    widget.username,
+                    style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 25),
+          Text("Choose a feature to begin:", style: TextStyle(color: textSecondary, fontSize: 16)),
+          const SizedBox(height: 25),
           Expanded(
             child: GridView.count(
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                // 🟣 Card with image - Daily Journal
-                _buildHomeCardWithImage(
-                  "Daily Journal",
-                  "assets/images/diary.png",
-                      () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DailyJournalScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                // 🟣 Card with image - Chat with Heneuro
-                _buildHomeCardWithImage(
-                  "Chat with Heneuro",
-                  "assets/images/chat.png",
-                      () {
-                    _onItemTapped(2);
-                  },
-                ),
-
-                // 🟣 Card with image - Mood Updates
-                _buildHomeCardWithImage(
-                  "Mood Updates",
-                  "assets/images/mood.png",
-                      () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MoodUpdatesScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                // 🟣 Card with image - Listen to Music
-                _buildHomeCardWithImage(
-                  "Listen to Music",
-                  "assets/images/music.png",
-                      () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MusicScreen(),
-                      ),
-                    );
-                  },
-                ),
+                _buildAnimatedCard("Daily Journal", "assets/images/diary.png", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DailyJournalScreen(username: widget.username),
+                    ),
+                  );
+                }),
+                _buildAnimatedCard("Chat with Heneuro", "assets/images/chat.png", () {
+                  _onItemTapped(2);
+                }),
+                _buildAnimatedCard("Mood Updates", "assets/images/mood.png", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MoodUpdatesScreen(username: widget.username),
+                    ),
+                  );
+                }),
+                // ✅ Updated Spotify Music Navigation
+                _buildAnimatedCard("Listen to Music", "assets/images/music.png", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MusicScreen()), // Spotify-connected
+                  );
+                }),
               ],
             ),
           ),
@@ -120,23 +117,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 🔹 CARD with IMAGE (for all main features)
-  Widget _buildHomeCardWithImage(
-      String title, String imagePath, VoidCallback onTap) {
+  Widget _buildAnimatedCard(String title, String image, VoidCallback onTap) {
     return InkWell(
-      onTap: onTap,
       borderRadius: BorderRadius.circular(20),
-      child: Container(
+      onTap: onTap,
+      splashColor: Colors.white24,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade200],
+            colors: _isDarkMode
+                ? [Colors.deepPurple.shade700, Colors.purpleAccent.shade200]
+                : [Colors.deepPurple, Colors.deepPurpleAccent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.deepPurple.withOpacity(0.3),
+              color: Colors.deepPurple.withOpacity(0.4),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -145,21 +144,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 🖼️ Larger image display for all icons
-            Image.asset(
-              imagePath,
-              height: 100,
-              width: 100,
-              fit: BoxFit.contain,
-            ),
+            Image.asset(image, height: 90, width: 90),
             const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w600,
                 fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -168,194 +161,158 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 🔹 EXPLORE TAB
+  // ---------- EXPLORE TAB ----------
   Widget _buildExplore() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: const [
-        ListTile(
-          leading: Icon(Icons.article, color: Colors.deepPurple),
-          title: Text("Latest Articles"),
-          subtitle: Text("Read about mental health and wellness."),
-        ),
-        Divider(),
-        ListTile(
-          leading: Icon(Icons.event, color: Colors.deepPurple),
-          title: Text("Upcoming Events"),
-          subtitle: Text("Check mental health awareness activities."),
-        ),
-        Divider(),
-        ListTile(
-          leading: Icon(Icons.volunteer_activism, color: Colors.deepPurple),
-          title: Text("Community Support"),
-          subtitle: Text("Join discussions and support groups."),
-        ),
-      ],
-    );
-  }
-
-  // 🔹 Heneuro Tab
-  Widget _buildHeneuro() {
-    return const Center(
-      child: Text(
-        "🤖 Chat with Heneuro (AI Assistant Coming Soon)",
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 20, color: Colors.deepPurple),
-      ),
-    );
-  }
-
-  // 🔹 Journal + Mood Tracker Tab
-  Widget _buildJournalMood() {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      color: background,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            "Daily Journal & Mood Tracker",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.deepPurple,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _buildFeatureCard(
-            "Daily Journal",
-            Icons.book,
-            "Write your thoughts and reflect daily.",
-                () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DailyJournalScreen(),
-                ),
-              );
-            },
-          ),
-          _buildFeatureCard(
-            "Mood Tracker",
-            Icons.mood,
-            "Track your mood and emotions regularly.",
-                () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const MoodUpdatesScreen(),
-                ),
-              );
-            },
-          ),
+          _buildListCard(Icons.article, "Latest Articles", "Read about mental health and wellness.", () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ArticlesScreen()));
+          }),
+          _buildListCard(Icons.event, "Upcoming Events", "Check upcoming awareness activities.", () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+          }),
+          _buildListCard(Icons.volunteer_activism, "Community Support",
+              "Join discussions and support groups.", () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunitySupportScreen()));
+              }),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureCard(
-      String title, IconData icon, String subtitle, VoidCallback onTap) {
+  Widget _buildListCard(IconData icon, String title, String subtitle, VoidCallback onTap) {
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 16),
+      color: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      elevation: 4,
       child: ListTile(
-        leading: Icon(icon, size: 35, color: Colors.deepPurple),
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          backgroundColor: accent.withOpacity(0.2),
+          radius: 28,
+          child: Icon(icon, color: accent, size: 30),
+        ),
         title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+            style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+        subtitle: Text(subtitle, style: TextStyle(color: textSecondary, fontSize: 14)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 18, color: accent.withOpacity(0.8)),
         onTap: onTap,
       ),
     );
   }
 
-  // 🔹 PROFILE TAB
-  Widget _buildProfile() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const CircleAvatar(
-          radius: 45,
-          backgroundColor: Colors.deepPurple,
-          child: Icon(Icons.person, size: 50, color: Colors.white),
-        ),
-        const SizedBox(height: 20),
-        Center(
-          child: Text(
-            widget.username,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.deepPurple,
-            ),
-          ),
-        ),
-        const SizedBox(height: 30),
-        _buildProfileButton(Icons.info, "Personal Information", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PersonalInfoScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.settings, "Account Settings", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.privacy_tip, "Data Privacy", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const DataPrivacyScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.lock, "Change Password", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.article, "Terms and Conditions", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const TermsConditionsScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.contacts, "Emergency Contacts", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.self_improvement, "Self-Help Resources",
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SelfHelpScreen()),
-              );
-            }),
-        _buildProfileButton(Icons.feedback, "Feedback", onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const FeedbackScreen()),
-          );
-        }),
-        _buildProfileButton(Icons.logout, "Logout", isLogout: true),
-        _buildProfileButton(Icons.delete_forever, "Delete Account",
-            isDelete: true),
-      ],
+  // ---------- Heneuro (AI) ----------
+  Widget _buildHeneuro() {
+    return Container(
+      color: background,
+      alignment: Alignment.center,
+      child: Text(
+        "🤖 Chat with Heneuro (Coming Soon)",
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 20, color: textPrimary),
+      ),
     );
   }
 
-  Widget _buildProfileButton(IconData icon, String title,
-      {VoidCallback? onTap, bool isLogout = false, bool isDelete = false}) {
+  // ---------- OTHERS TAB ----------
+  Widget _buildJournalMood() {
+    return Container(
+      color: background,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Wellness, Journal & Mood",
+            style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 22),
+          ),
+          const SizedBox(height: 20),
+          _buildFeatureCard("Daily Journal", Icons.book, "Write your thoughts and reflect daily.", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => DailyJournalScreen(username: widget.username)),
+            );
+          }),
+          _buildFeatureCard("Mood Tracker", Icons.mood, "Track your mood and emotions regularly.", () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => MoodUpdatesScreen(username: widget.username)),
+            );
+          }),
+          _buildFeatureCard("Self-Help Resources", Icons.self_improvement,
+              "Access helpful guides, tips, and self-care materials.", () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SelfHelpScreen()));
+              }),
+          _buildFeatureCard("Emergency Contacts", Icons.contacts,
+              "Quickly reach your emergency support contacts.", () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()));
+              }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard(String title, IconData icon, String subtitle, VoidCallback onTap) {
     return Card(
+      color: cardColor,
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: ListTile(
+        leading: Icon(icon, size: 35, color: accent),
+        title: Text(title, style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: TextStyle(color: textSecondary)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 18, color: accent.withOpacity(0.8)),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  // ---------- PROFILE TAB ----------
+  Widget _buildProfile() {
+    return Container(
+      color: background,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          CircleAvatar(
+            radius: 45,
+            backgroundColor: accent,
+            child: const Icon(Icons.person, size: 50, color: Colors.white),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: Text(widget.username,
+                style: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 30),
+          _buildProfileTile(Icons.info, "Personal Information", const PersonalInfoScreen()),
+          _buildProfileTile(Icons.settings, "Account Settings", const AccountSettingsScreen()),
+          _buildProfileTile(Icons.privacy_tip, "Data Privacy", const DataPrivacyScreen()),
+          _buildProfileTile(Icons.lock, "Change Password", const ChangePasswordScreen()),
+          _buildProfileTile(Icons.article, "Terms & Conditions", const TermsConditionsScreen()),
+          _buildProfileTile(Icons.feedback, "Feedback", const FeedbackScreen()),
+          _buildProfileTile(Icons.logout, "Logout", null, isLogout: true),
+          _buildProfileTile(Icons.delete_forever, "Delete Account", null, isDelete: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileTile(IconData icon, String title, Widget? screen,
+      {bool isLogout = false, bool isDelete = false}) {
+    return Card(
+      color: cardColor,
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(icon, color: isDelete ? Colors.red : Colors.deepPurple),
-        title: Text(title),
+        leading: Icon(icon, color: isDelete ? Colors.redAccent : accent, size: 28),
+        title: Text(title, style: TextStyle(color: textPrimary)),
         onTap: () {
           if (isLogout) {
             Navigator.pushAndRemoveUntil(
@@ -365,20 +322,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
           } else if (isDelete) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("⚠️ Account Deleted (placeholder)")),
+              const SnackBar(content: Text("⚠️ Account deleted (placeholder)")),
             );
-          } else if (onTap != null) {
-            onTap();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("$title coming soon")),
-            );
+          } else if (screen != null) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
           }
         },
       ),
     );
   }
 
+  // ---------- BUILD ----------
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -397,14 +351,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: const Text("Exit App"),
             content: const Text("Do you want to close NeuroHelp?"),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text("Exit"),
-              ),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Exit")),
             ],
           ),
         );
@@ -412,16 +360,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: const Text("NeuroHelp"),
-          backgroundColor: Colors.deepPurple,
+          centerTitle: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.deepPurple, Colors.purpleAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.dark_mode),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Dark Mode toggle coming soon")),
-                );
-              },
+              icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
+              onPressed: _toggleDarkMode,
             ),
           ],
         ),
@@ -440,24 +394,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
             BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Explore"),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.psychology), label: "Heneuro"),
-            BottomNavigationBarItem(icon: Icon(Icons.note_alt), label: "Journal"),
+            BottomNavigationBarItem(icon: Icon(Icons.psychology), label: "Heneuro"),
+            BottomNavigationBarItem(icon: Icon(Icons.note_alt), label: "Others"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
           ],
         ),
-        floatingActionButton: _selectedIndex == 0
-            ? FloatingActionButton(
-          backgroundColor: Colors.deepPurple,
-          child: const Icon(Icons.add),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text("Quick action coming soon")),
-            );
-          },
-        )
-            : null,
       ),
     );
   }

@@ -8,19 +8,12 @@ class AccountSettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Account Settings"),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.purple,
       ),
       body: Container(
-        padding: const EdgeInsets.all(16.0),
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFB3E5FC), Color(0xFFE1BEE7)], // light blue → lavender
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        color: Colors.white,
         child: SingleChildScrollView(
           child: Card(
             shape: RoundedRectangleBorder(
@@ -57,3 +50,5 @@ class AccountSettingsScreen extends StatelessWidget {
     );
   }
 }
+
+

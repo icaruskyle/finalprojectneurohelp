@@ -8,18 +8,12 @@ class DataPrivacyScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Data Privacy"),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.purple,
       ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFB3E5FC), Color(0xFFE1BEE7)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        color: Colors.white,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),

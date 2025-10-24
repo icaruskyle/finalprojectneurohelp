@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MoodUpdatesScreen extends StatefulWidget {
-  const MoodUpdatesScreen({super.key});
+  final String username;
+
+  const MoodUpdatesScreen({super.key, required this.username});
 
   @override
   State<MoodUpdatesScreen> createState() => _MoodUpdatesScreenState();
@@ -11,99 +13,114 @@ class MoodUpdatesScreen extends StatefulWidget {
 class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
   List<String> _moodHistory = [];
 
+  String get _moodKey => "moodHistory_${widget.username}";
+
   @override
   void initState() {
     super.initState();
-    _loadMoods();
+    _loadMoodHistory();
   }
 
-  Future<void> _loadMoods() async {
+  Future<void> _loadMoodHistory() async {
     final prefs = await SharedPreferences.getInstance();
+    final history = prefs.getStringList(_moodKey) ?? [];
     setState(() {
-      _moodHistory = prefs.getStringList("moodHistory") ?? [];
+      _moodHistory = history;
     });
   }
 
-  Future<void> _saveMood(String mood) async {
+  Future<void> _deleteMoodEntry(int index) async {
     final prefs = await SharedPreferences.getInstance();
-    final date = DateTime.now().toString().split(" ")[0]; // yyyy-mm-dd
-    final entry = "$date → $mood";
-
     setState(() {
-      _moodHistory.insert(0, entry);
+      _moodHistory.removeAt(index);
     });
-
-    await prefs.setStringList("moodHistory", _moodHistory);
+    await prefs.setStringList(_moodKey, _moodHistory);
   }
 
   @override
   Widget build(BuildContext context) {
-    final moods = {
-      "😊": "Happy",
-      "😐": "Neutral",
-      "😢": "Sad",
-      "😡": "Angry",
-      "😴": "Tired",
-      "🤔": "Thoughtful"
-    };
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
-        title: const Text("Mood Tracker"),
-        backgroundColor: Colors.deepPurple,
+        title: Text("${widget.username}'s Mood History"),
+        backgroundColor:
+        isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              "How are you feeling today?",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 15,
-              children: moods.entries.map((entry) {
-                return ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: () => _saveMood("${entry.key} ${entry.value}"),
-                  child: Text(
-                    entry.key,
-                    style: const TextStyle(fontSize: 28),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 30),
-            const Text(
-              "Mood History",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(),
-            Expanded(
-              child: _moodHistory.isEmpty
-                  ? const Center(
-                      child: Text("No moods tracked yet."),
-                    )
-                  : ListView.builder(
-                      itemCount: _moodHistory.length,
-                      itemBuilder: (context, index) {
-                        return Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.mood, color: Colors.deepPurple),
-                            title: Text(_moodHistory[index]),
-                          ),
-                        );
-                      },
-                    ),
-            )
-          ],
+      body: _moodHistory.isEmpty
+          ? Center(
+        child: Text(
+          "No mood updates yet",
+          style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.black54,
+              fontSize: 16),
         ),
+      )
+          : ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _moodHistory.length,
+        itemBuilder: (context, index) {
+          final entry = _moodHistory[index];
+          final parts = entry.split('→');
+          final date = parts[0].trim();
+          final mood = parts.length > 1 ? parts[1].trim() : "Unknown";
+
+          return Card(
+            color: isDark
+                ? Colors.deepPurple.shade800
+                : Colors.deepPurple.shade50,
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              title: Text(
+                mood,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.deepPurple,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                "🗓 Date: $date",
+                style: TextStyle(
+                  color: isDark ? Colors.purple[200] : Colors.black87,
+                ),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.redAccent),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Delete Mood Entry"),
+                      content: const Text(
+                          "Are you sure you want to delete this mood entry?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _deleteMoodEntry(index);
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            "Delete",
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
       ),
     );
   }

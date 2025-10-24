@@ -27,7 +27,7 @@ class SelfHelpScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Self-Help Resources"),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Colors.purple,
       ),
       body: ListView.builder(
         itemCount: resources.length,
