@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:projects/screens/login_screen.dart';
 import 'daily_journal_screen.dart';
 import 'mood_updates_screen.dart';
 import 'music_screen.dart'; // ✅ Spotify-connected music screen
@@ -15,33 +16,27 @@ import 'articles_screen.dart';
 import 'events_screen.dart';
 import 'community_support_screen.dart';
 
-
 class DashboardScreen extends StatefulWidget {
   final String username;
   const DashboardScreen({super.key, required this.username});
 
-
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
-
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
   bool _isDarkMode = false;
 
-
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
     _pageController.jumpToPage(index);
   }
 
-
   void _toggleDarkMode() {
     setState(() => _isDarkMode = !_isDarkMode);
   }
-
 
   // ---------- Theme Colors ----------
   Color get primary => Colors.deepPurple;
@@ -50,7 +45,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color get textPrimary => _isDarkMode ? Colors.white : Colors.deepPurple.shade900;
   Color get textSecondary => _isDarkMode ? Colors.white70 : Colors.black87;
   Color get accent => _isDarkMode ? Colors.purpleAccent : Colors.deepPurple;
-
 
   // ---------- HOME TAB ----------
   Widget _buildHome() {
@@ -109,7 +103,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   );
                 }),
-                // ✅ Fixed: pass the username to MusicScreen
                 _buildAnimatedCard("Listen to Music", "assets/images/music.png", () {
                   Navigator.push(
                     context,
@@ -123,7 +116,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 
   Widget _buildAnimatedCard(String title, String image, VoidCallback onTap) {
     return InkWell(
@@ -169,7 +161,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
   // ---------- EXPLORE TAB ----------
   Widget _buildExplore() {
     return Container(
@@ -191,7 +182,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 
   Widget _buildListCard(IconData icon, String title, String subtitle, VoidCallback onTap) {
     return Card(
@@ -215,7 +205,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
   // ---------- Heneuro (AI) ----------
   Widget _buildHeneuro() {
     return Container(
@@ -228,7 +217,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 
   // ---------- OTHERS TAB ----------
   Widget _buildJournalMood() {
@@ -268,7 +256,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
   Widget _buildFeatureCard(String title, IconData icon, String subtitle, VoidCallback onTap) {
     return Card(
       color: cardColor,
@@ -284,7 +271,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 
   // ---------- PROFILE TAB ----------
   Widget _buildProfile() {
@@ -317,7 +303,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
   Widget _buildProfileTile(IconData icon, String title, Widget? screen,
       {bool isLogout = false, bool isDelete = false}) {
     return Card(
@@ -330,10 +315,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Text(title, style: TextStyle(color: textPrimary)),
         onTap: () {
           if (isLogout) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                  (route) => false,
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text("Logout"),
+                content: const Text("Are you sure you want to logout?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context), // Cancel
+                    child: const Text("Cancel"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Optional: Firebase sign out
+                      // FirebaseAuth.instance.signOut();
+
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                            (route) => false,
+                      );
+                    },
+                    child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
             );
           } else if (isDelete) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -347,7 +354,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-
   // ---------- BUILD ----------
   @override
   Widget build(BuildContext context) {
@@ -358,7 +364,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _buildJournalMood(),
       _buildProfile(),
     ];
-
 
     return WillPopScope(
       onWillPop: () async {
@@ -420,4 +425,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
-
