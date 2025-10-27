@@ -30,12 +30,14 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscureConfirm = true;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
 
   // ------------------ Email/Password Signup ------------------
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_isAgreed) {
-      _showSnackBar("Please agree to the Privacy Policy and Terms.", Colors.red);
+      _showSnackBar(
+          "Please agree to the Privacy Policy and Terms.", Colors.red);
       return;
     }
 
@@ -97,22 +99,23 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
-        return;
+        return; // User canceled
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
       );
 
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      UserCredential userCredential =
+      await _auth.signInWithCredential(credential);
 
-      // Save user to Firestore if new
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: userCredential.user?.email)
@@ -121,7 +124,8 @@ class _SignupScreenState extends State<SignupScreen> {
       if (userDoc.docs.isEmpty) {
         await FirebaseFirestore.instance.collection('users').add({
           'fullName': userCredential.user?.displayName ?? '',
-          'username': userCredential.user?.displayName?.replaceAll(' ', '') ??
+          'username': userCredential.user?.displayName
+              ?.replaceAll(' ', '') ??
               userCredential.user?.uid,
           'email': userCredential.user?.email ?? '',
           'age': 0,
@@ -177,44 +181,53 @@ class _SignupScreenState extends State<SignupScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    const Icon(Icons.person_add, size: 80, color: Colors.deepPurple),
+                    const Icon(Icons.person_add,
+                        size: 80, color: Colors.deepPurple),
                     const SizedBox(height: 20),
                     Text(
                       "Create Account",
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.deepPurple.shade800,
+                        color:
+                        isDark ? Colors.white : Colors.deepPurple.shade800,
                       ),
                     ),
                     const SizedBox(height: 30),
                     _buildTextField(fullController, "Full Name", Icons.person),
                     const SizedBox(height: 16),
-                    _buildTextField(usernameController, "Username", Icons.person),
+                    _buildTextField(
+                        usernameController, "Username", Icons.person),
                     const SizedBox(height: 16),
                     _buildTextField(emailController, "Email", Icons.email,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty) return "Please enter your email";
-                          if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          if (value == null || value.isEmpty) {
+                            return "Please enter your email";
+                          }
+                          if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
+                              .hasMatch(value)) {
                             return "Enter a valid email address";
                           }
                           return null;
                         }),
                     const SizedBox(height: 16),
                     _buildTextField(ageController, "Age", Icons.numbers_rounded,
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return "Please enter your age";
+                        keyboardType: TextInputType.number, validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return "Please enter your age";
+                          }
                           final age = int.tryParse(value);
-                          if (age == null || age <= 0) return "Please enter a valid age";
+                          if (age == null || age <= 0) {
+                            return "Please enter a valid age";
+                          }
                           return null;
                         }),
                     const SizedBox(height: 16),
                     _buildBirthdayField(),
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
-                      initialValue: gender,
+                      value: gender,
                       decoration: _inputDecoration("Gender", Icons.person_2),
                       items: const [
                         DropdownMenuItem(value: "Male", child: Text("Male")),
@@ -222,14 +235,18 @@ class _SignupScreenState extends State<SignupScreen> {
                         DropdownMenuItem(value: "Other", child: Text("Other")),
                       ],
                       onChanged: (value) => setState(() => gender = value),
-                      validator: (value) => value == null ? "Please select gender" : null,
+                      validator: (value) =>
+                      value == null ? "Please select gender" : null,
                     ),
                     const SizedBox(height: 20),
                     _buildTextField(numController, "Contact Number", Icons.phone,
-                        keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return "Please enter your contact number";
-                          if (value.length < 10) return "Enter a valid contact number";
+                        keyboardType: TextInputType.phone, validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return "Please enter your contact number";
+                          }
+                          if (value.length < 10) {
+                            return "Enter a valid contact number";
+                          }
                           return null;
                         }),
                     const SizedBox(height: 30),
@@ -242,7 +259,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         Checkbox(
                           value: _isAgreed,
                           activeColor: Colors.deepPurple,
-                          onChanged: (value) => setState(() => _isAgreed = value ?? false),
+                          onChanged: (value) =>
+                              setState(() => _isAgreed = value ?? false),
                         ),
                         const Expanded(
                           child: Text(
@@ -258,7 +276,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 100, vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -267,7 +286,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                         "Sign Up",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -276,12 +296,14 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: _isLoading ? null : _signUpWithGoogle,
-                      icon: const Icon(Icons.g_mobiledata, color: Colors.red),
+                      icon:
+                      const Icon(Icons.g_mobiledata, color: Colors.red, size: 30),
                       label: const Text("Google"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 40, vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -292,7 +314,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
                         );
                       },
                       child: const Text(
@@ -321,12 +344,15 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildTextField(TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboardType = TextInputType.text, String? Function(String?)? validator}) {
+      {TextInputType keyboardType = TextInputType.text,
+        String? Function(String?)? validator}) {
     return TextFormField(
       controller: controller,
       decoration: _inputDecoration(label, icon),
       keyboardType: keyboardType,
-      validator: validator ?? (value) => value == null || value.isEmpty ? "Please enter $label" : null,
+      validator: validator ??
+              (value) =>
+          value == null || value.isEmpty ? "Please enter $label" : null,
     );
   }
 
@@ -334,8 +360,10 @@ class _SignupScreenState extends State<SignupScreen> {
     return TextFormField(
       controller: birthController,
       readOnly: true,
-      decoration: _inputDecoration("Birthday", Icons.cake)
-          .copyWith(suffixIcon: const Icon(Icons.calendar_month, color: Colors.deepPurple)),
+      decoration: _inputDecoration("Birthday", Icons.cake).copyWith(
+        suffixIcon:
+        const Icon(Icons.calendar_month, color: Colors.deepPurple),
+      ),
       onTap: () async {
         DateTime? pickedDate = await showDatePicker(
           context: context,
@@ -350,7 +378,8 @@ class _SignupScreenState extends State<SignupScreen> {
           });
         }
       },
-      validator: (value) => value == null || value.isEmpty ? "Please select your birthday" : null,
+      validator: (value) =>
+      value == null || value.isEmpty ? "Please select your birthday" : null,
     );
   }
 
@@ -360,8 +389,11 @@ class _SignupScreenState extends State<SignupScreen> {
       obscureText: _obscurePassword,
       decoration: _inputDecoration("Password", Icons.lock).copyWith(
         suffixIcon: IconButton(
-          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+          icon: Icon(
+              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+              color: Colors.grey),
+          onPressed: () =>
+              setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
       validator: (value) {
@@ -378,12 +410,17 @@ class _SignupScreenState extends State<SignupScreen> {
       obscureText: _obscureConfirm,
       decoration: _inputDecoration("Confirm Password", Icons.lock).copyWith(
         suffixIcon: IconButton(
-          icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+          icon: Icon(
+              _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+              color: Colors.grey),
+          onPressed: () =>
+              setState(() => _obscureConfirm = !_obscureConfirm),
         ),
       ),
       validator: (value) {
-        if (value != passwordController.text) return "Passwords do not match";
+        if (value != passwordController.text) {
+          return "Passwords do not match";
+        }
         return null;
       },
     );
