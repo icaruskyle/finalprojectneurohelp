@@ -1,6 +1,6 @@
 // daily_journal_screen.dart
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
 import 'mood_updates_screen.dart';
@@ -17,16 +17,6 @@ class DailyJournalScreen extends StatefulWidget {
 
 class _DailyJournalScreenState extends State<DailyJournalScreen> {
   final TextEditingController _controller = TextEditingController();
-  List<Map<String, String>> _entries = [];
-
-  String get _journalKey => "dailyJournal_${widget.username}";
-  String get _moodKey => "moodHistory_${widget.username}";
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEntries();
-  }
 
   @override
   void dispose() {
@@ -34,72 +24,82 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     super.dispose();
   }
 
-  Future<void> _loadEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedData = prefs.getStringList(_journalKey) ?? [];
-    setState(() {
-      _entries = savedData.map((e) {
-        final parts = e.split('|');
-        return {
-          "text": parts.isNotEmpty ? parts[0] : "",
-          "mood": parts.length > 1 ? parts[1] : "Unknown",
-          "date": parts.length > 2
-              ? parts[2]
-              : DateTime.now().toString().split(" ")[0],
-        };
-      }).toList();
-    });
-  }
-
   Future<void> _saveEntry() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     final suicidalDetected = _detectSuicidalRisk(text);
-    final prefs = await SharedPreferences.getInstance();
     final mood = _predictMood(text);
-    final date = DateTime.now().toString().split(" ")[0];
+    final date = DateTime.now().toIso8601String();
 
-    setState(() {
-      _entries.insert(0, {
-        "text": text,
-        "mood": mood,
-        "date": date,
+    _controller.clear();
+
+    try {
+      final journalRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.username)
+          .collection('daily_journal');
+
+      final moodHistoryRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.username)
+          .collection('mood_history');
+
+      // Save journal entry
+      await journalRef.add({
+        'text': text,
+        'mood': mood,
+        'date': date,
       });
-      _controller.clear();
-    });
 
-    await prefs.setStringList(
-      _journalKey,
-      _entries.map((e) => "${e["text"]}|${e["mood"]}|${e["date"]}").toList(),
-    );
+      // Save mood history
+      await moodHistoryRef.add({
+        'mood': mood,
+        'date': date,
+      });
 
-    final moodHistory = prefs.getStringList(_moodKey) ?? [];
-    moodHistory.insert(0, "$date → $mood");
-    await prefs.setStringList(_moodKey, moodHistory);
-
-    if (suicidalDetected) {
-      await _showSuicidalAlertDialog();
-    } else {
+      if (suicidalDetected) {
+        await _showSuicidalAlertDialog();
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Journal saved — detected mood: $mood"),
+              backgroundColor: Colors.deepPurple,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Journal saved — detected mood: $mood"),
-            backgroundColor: Colors.deepPurple,
-            behavior: SnackBarBehavior.floating,
-          ),
+          const SnackBar(content: Text("Error saving entry.")),
         );
       }
     }
   }
 
-  Future<void> _deleteEntry(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _entries.removeAt(index));
-    await prefs.setStringList(
-      _journalKey,
-      _entries.map((e) => "${e["text"]}|${e["mood"]}|${e["date"]}").toList(),
-    );
+  Future<void> _deleteEntry(String docId) async {
+    try {
+      final journalRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.username)
+          .collection('daily_journal');
+      await journalRef.doc(docId).delete();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Journal entry deleted.")),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error deleting entry.")),
+        );
+      }
+    }
   }
 
   Future<void> _showSuicidalAlertDialog() async {
@@ -224,67 +224,22 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       "no reason to live",
       "die"
     ];
-
     for (final p in critical) {
       if (lower.contains(p)) return true;
     }
-
-    final pattern = RegExp(
-      r'\b(kill|suicide|die|end my life|end it all|overdose|jump)\b',
-      caseSensitive: false,
-    );
-    if (pattern.hasMatch(lower)) {
-      final contextPattern = RegExp(
-        r'\b(myself|life|all|now|today|tonight)\b',
-        caseSensitive: false,
-      );
-      if (contextPattern.hasMatch(lower)) return true;
-      return true;
-    }
-
     return false;
   }
 
-  // 🟣 UPDATED SECTION: use _detectSuicidalRisk to ensure "die" and similar always return warning
   String _predictMood(String text) {
     final lower = text.toLowerCase();
-
-    // If detection logic says suicidal risk, return warning
-    if (_detectSuicidalRisk(lower)) {
-      return "⚠️ Warning: Suicidal Content Detected";
-    }
-
-    if (lower.contains("happy") ||
-        lower.contains("excited") ||
-        lower.contains("grateful") ||
-        lower.contains("joy") ||
-        lower.contains("amazing")) {
-      return "😊 Happy";
-    } else if (lower.contains("sad") ||
-        lower.contains("depressed") ||
-        lower.contains("cry") ||
-        lower.contains("lonely")) {
-      return "😢 Sad";
-    } else if (lower.contains("angry") ||
-        lower.contains("mad") ||
-        lower.contains("frustrated")) {
-      return "😡 Angry";
-    } else if (lower.contains("tired") ||
-        lower.contains("exhausted") ||
-        lower.contains("sleepy")) {
-      return "😴 Tired";
-    } else if (lower.contains("calm") ||
-        lower.contains("relaxed") ||
-        lower.contains("peaceful")) {
-      return "🧘 Calm";
-    } else if (lower.contains("anxious") ||
-        lower.contains("nervous") ||
-        lower.contains("worried")) {
-      return "😟 Anxious";
-    } else {
-      final randomMoods = ["🙂 Neutral", "🤔 Reflective", "😌 Content"];
-      return randomMoods[Random().nextInt(randomMoods.length)];
-    }
+    if (_detectSuicidalRisk(lower)) return "⚠️ Warning: Suicidal Content Detected";
+    if (lower.contains("happy") || lower.contains("excited") || lower.contains("joy") || lower.contains("grateful")) return "😊 Happy";
+    if (lower.contains("sad") || lower.contains("depressed") || lower.contains("lonely") || lower.contains("cry")) return "😢 Sad";
+    if (lower.contains("angry") || lower.contains("mad") || lower.contains("frustrated")) return "😡 Angry";
+    if (lower.contains("calm") || lower.contains("relaxed") || lower.contains("peaceful")) return "🧘 Calm";
+    if (lower.contains("anxious") || lower.contains("nervous") || lower.contains("worried")) return "😟 Anxious";
+    final randomMoods = ["🙂 Neutral", "🤔 Reflective", "😌 Content"];
+    return randomMoods[Random().nextInt(randomMoods.length)];
   }
 
   @override
@@ -295,8 +250,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
         title: Text("${widget.username}'s Daily Journal"),
-        backgroundColor:
-        isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
+        backgroundColor: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
         actions: [
           IconButton(
             icon: const Icon(Icons.mood, color: Colors.white),
@@ -322,14 +276,10 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: "Write your reflection...",
-                labelStyle: TextStyle(
-                    color: isDark ? Colors.purple[200] : Colors.deepPurple),
+                labelStyle: TextStyle(color: isDark ? Colors.purple[200] : Colors.deepPurple),
                 filled: true,
-                fillColor: isDark
-                    ? Colors.deepPurple.shade900
-                    : Colors.deepPurple.shade50,
-                border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                fillColor: isDark ? Colors.deepPurple.shade900 : Colors.deepPurple.shade50,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 10),
@@ -338,83 +288,73 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text("Save Entry"),
             ),
             const SizedBox(height: 20),
+
+            // 🔹 Display journal entries
             Expanded(
-              child: _entries.isEmpty
-                  ? Center(
-                child: Text(
-                  "No journal entries yet",
-                  style: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black54),
-                ),
-              )
-                  : ListView.builder(
-                itemCount: _entries.length,
-                itemBuilder: (context, index) {
-                  final entry = _entries[index];
-                  return Card(
-                    color: isDark
-                        ? Colors.deepPurple.shade800
-                        : Colors.deepPurple.shade50,
-                    margin:
-                    const EdgeInsets.symmetric(vertical: 6),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    child: ListTile(
-                      title: Text(
-                        entry["text"] ?? "",
-                        style: TextStyle(
-                            color: isDark
-                                ? Colors.white
-                                : Colors.black87),
-                      ),
-                      subtitle: Text(
-                        "🗓 ${entry["date"]}  •  Mood: ${entry["mood"]}",
-                        style: TextStyle(
-                          color: (entry["mood"]?.contains("⚠️") ?? false)
-                              ? Colors.redAccent
-                              : isDark
-                              ? Colors.purpleAccent.shade100
-                              : Colors.deepPurple,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      isThreeLine: true,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete,
-                            color: Colors.redAccent),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text("Delete Entry"),
-                              content: const Text(
-                                  "Are you sure you want to delete this entry?"),
-                              actions: [
-                                TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context),
-                                    child: const Text("Cancel")),
-                                TextButton(
-                                  onPressed: () {
-                                    _deleteEntry(index);
-                                    Navigator.pop(context);
-                                  },
-                                  child: const Text("Delete",
-                                      style: TextStyle(
-                                          color: Colors.red)),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(widget.username)
+                    .collection('daily_journal')
+                    .orderBy('date', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                  final docs = snapshot.data!.docs;
+                  if (docs.isEmpty) return Center(child: Text("No journal entries yet", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)));
+
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      final docId = docs[index].id;
+                      final text = data['text'] ?? '';
+                      final mood = data['mood'] ?? 'Unknown';
+                      final date = data['date'] != null ? DateTime.parse(data['date']).toLocal().toString().split(' ')[0] : '';
+
+                      return Card(
+                        color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          title: Text(text, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                          subtitle: Text("🗓 $date  •  Mood: $mood",
+                              style: TextStyle(color: mood.contains("⚠️") ? Colors.redAccent : (isDark ? Colors.purpleAccent.shade100 : Colors.deepPurple))),
+                          isThreeLine: true,
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.redAccent),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Delete Entry"),
+                                  content: const Text("Are you sure you want to delete this entry?"),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Cancel"),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        _deleteEntry(docId);
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),

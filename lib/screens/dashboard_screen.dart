@@ -109,11 +109,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   );
                 }),
-                // ✅ Updated Spotify Music Navigation
+                // ✅ Fixed: pass the username to MusicScreen
                 _buildAnimatedCard("Listen to Music", "assets/images/music.png", () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const MusicScreen()), // Spotify-connected
+                    MaterialPageRoute(builder: (_) => MusicScreen(username: widget.username)),
                   );
                 }),
               ],

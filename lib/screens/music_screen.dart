@@ -1,38 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
-class MusicScreen extends StatelessWidget {
-  const MusicScreen({super.key});
+class MusicScreen extends StatefulWidget {
+  final String username;
+  const MusicScreen({super.key, required this.username});
 
-  // Show alert dialog for coming soon feature
-  void _showComingSoon(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Coming Soon"),
-        content: const Text("Spotify connection feature is under development."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
+  @override
+  State<MusicScreen> createState() => _MusicScreenState();
+}
+
+class _MusicScreenState extends State<MusicScreen> {
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse('https://open.spotify.com/'));
   }
 
   @override
   Widget build(BuildContext context) {
-    // Example UI
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Music"),
+        title: Text('Spotify Player - ${widget.username}'),
+        backgroundColor: Colors.deepPurple,
       ),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () => _showComingSoon(context),
-          child: const Text("Connect to Spotify"),
-        ),
-      ),
+      body: WebViewWidget(controller: _controller),
     );
   }
 }
