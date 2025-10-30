@@ -17,7 +17,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController fullController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController ageController = TextEditingController();
   final TextEditingController birthController = TextEditingController();
   final TextEditingController numController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -56,7 +55,8 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+      await _auth.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
@@ -67,7 +67,6 @@ class _SignupScreenState extends State<SignupScreen> {
         'fullName': fullController.text.trim(),
         'username': usernameController.text.trim(),
         'email': emailController.text.trim(),
-        'age': int.tryParse(ageController.text) ?? 0,
         'birthday': birthController.text.trim(),
         'gender': gender ?? '',
         'contactNumber': numController.text.trim(),
@@ -128,7 +127,6 @@ class _SignupScreenState extends State<SignupScreen> {
               ?.replaceAll(' ', '') ??
               userCredential.user?.uid,
           'email': userCredential.user?.email ?? '',
-          'age': 0,
           'birthday': '',
           'gender': '',
           'contactNumber': '',
@@ -189,8 +187,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color:
-                        isDark ? Colors.white : Colors.deepPurple.shade800,
+                        color: isDark
+                            ? Colors.white
+                            : Colors.deepPurple.shade800,
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -212,18 +211,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         }),
                     const SizedBox(height: 16),
-                    _buildTextField(ageController, "Age", Icons.numbers_rounded,
-                        keyboardType: TextInputType.number, validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "Please enter your age";
-                          }
-                          final age = int.tryParse(value);
-                          if (age == null || age <= 0) {
-                            return "Please enter a valid age";
-                          }
-                          return null;
-                        }),
-                    const SizedBox(height: 16),
                     _buildBirthdayField(),
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
@@ -239,13 +226,15 @@ class _SignupScreenState extends State<SignupScreen> {
                       value == null ? "Please select gender" : null,
                     ),
                     const SizedBox(height: 20),
+                    // ✅ Updated phone number validation
                     _buildTextField(numController, "Contact Number", Icons.phone,
                         keyboardType: TextInputType.phone, validator: (value) {
                           if (value == null || value.isEmpty) {
                             return "Please enter your contact number";
                           }
-                          if (value.length < 10) {
-                            return "Enter a valid contact number";
+                          if (value.length != 11 ||
+                              !RegExp(r'^[0-9]+$').hasMatch(value)) {
+                            return "Contact number must be exactly 11 digits";
                           }
                           return null;
                         }),
@@ -271,10 +260,26 @@ class _SignupScreenState extends State<SignupScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
+
+                    // ✅ Sign-Up Button
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _registerUser,
+                      onPressed: (!_isAgreed || _isLoading)
+                          ? null
+                          : () {
+                        if (_formKey.currentState!.validate()) {
+                          if (!_isAgreed) {
+                            _showSnackBar(
+                              "You must agree to the Privacy Policy and Terms first.",
+                              Colors.redAccent,
+                            );
+                          } else {
+                            _registerUser();
+                          }
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
+                        backgroundColor:
+                        _isAgreed ? Colors.deepPurple : Colors.grey,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 100, vertical: 16),
@@ -296,8 +301,8 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: _isLoading ? null : _signUpWithGoogle,
-                      icon:
-                      const Icon(Icons.g_mobiledata, color: Colors.red, size: 30),
+                      icon: const Icon(Icons.g_mobiledata,
+                          color: Colors.red, size: 30),
                       label: const Text("Google"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -343,7 +348,8 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon,
+  Widget _buildTextField(TextEditingController controller, String label,
+      IconData icon,
       {TextInputType keyboardType = TextInputType.text,
         String? Function(String?)? validator}) {
     return TextFormField(

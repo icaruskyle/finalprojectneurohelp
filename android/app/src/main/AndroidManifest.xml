@@ -1,11 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 👇 Required permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:label="NeuroHelp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-
-    <activity
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
@@ -31,8 +35,21 @@
                     android:host="callback" />
             </intent-filter>
 
-            <!-- Optional: Deep links or other schemes can go here -->
         </activity>
+
+        <!-- 👇 Firebase Messaging service -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- 👇 Default notification channel for Firebase -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="neurohelp_channel" />
 
         <!-- Flutter metadata -->
         <meta-data
@@ -51,4 +68,5 @@
             <data android:mimeType="text/plain" />
         </intent>
     </queries>
+
 </manifest>

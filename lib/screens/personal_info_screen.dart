@@ -111,12 +111,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                           inputType: TextInputType.emailAddress,
                           isDarkMode: isDarkMode,
                         ),
-                        _buildTextField(
-                          label: "Age",
-                          icon: Icons.numbers,
-                          inputType: TextInputType.number,
-                          isDarkMode: isDarkMode,
-                        ),
 
                         // 🎂 Birthday (Calendar Picker)
                         Padding(
