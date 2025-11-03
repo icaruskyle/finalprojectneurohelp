@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -8,19 +10,102 @@ class PersonalInfoScreen extends StatefulWidget {
 }
 
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
-  String? gender;
   bool isDarkMode = false;
+  String? gender;
 
-  // Controller for birthday field
+  // Controllers for text fields
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
+  final TextEditingController _contactController = TextEditingController();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  // Load current user info from Firestore
+  void _loadUserInfo() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // Try to get document by UID
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          _fullNameController.text = data['fullName'] ?? '';
+          _usernameController.text = data['username'] ?? '';
+          _birthdateController.text = data['birthday'] ?? '';
+          _contactController.text = data['contact'] ?? '';
+          gender = data['gender'];
+        });
+      } else {
+        // If no document with UID, try to find by email
+        final query = await _firestore.collection('users')
+            .where('email', isEqualTo: user.email)
+            .get();
+
+        if (query.docs.isNotEmpty) {
+          final data = query.docs.first.data();
+          setState(() {
+            _fullNameController.text = data['fullName'] ?? '';
+            _usernameController.text = data['username'] ?? '';
+            _birthdateController.text = data['birthday'] ?? '';
+            _contactController.text = data['contact'] ?? '';
+            gender = data['gender'];
+          });
+        }
+      }
+    }
+  }
+
+  // Save user info to Firestore
+  void _saveUserInfo() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (userDoc.exists) {
+        // Update existing document
+        await _firestore.collection('users').doc(user.uid).update({
+          'fullName': _fullNameController.text.trim(),
+          'username': _usernameController.text.trim(),
+          'birthday': _birthdateController.text.trim(),
+          'contact': _contactController.text.trim(),
+          'gender': gender,
+        });
+      } else {
+        // If no document exists with UID, create one
+        await _firestore.collection('users').doc(user.uid).set({
+          'fullName': _fullNameController.text.trim(),
+          'username': _usernameController.text.trim(),
+          'birthday': _birthdateController.text.trim(),
+          'contact': _contactController.text.trim(),
+          'gender': gender,
+          'email': user.email, // keep email saved but not editable
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Personal information saved successfully!"),
+          backgroundColor: isDarkMode ? Colors.purpleAccent : Colors.deepPurple,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 🎨 Colors for both modes
-    final Color backgroundLight1 = const Color(0xFFD1C4E9); // light purple
-    final Color backgroundLight2 = const Color(0xFFB39DDB); // lavender
-    final Color backgroundDark1 = const Color(0xFF1E1E2C); // deep gray-purple
-    final Color backgroundDark2 = const Color(0xFF121212); // dark mode background
+    final Color backgroundLight1 = const Color(0xFFD1C4E9);
+    final Color backgroundLight2 = const Color(0xFFB39DDB);
+    final Color backgroundDark1 = const Color(0xFF1E1E2C);
+    final Color backgroundDark2 = const Color(0xFF121212);
 
     final Color textColor = isDarkMode ? Colors.white : Colors.deepPurple;
     final Color cardColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
@@ -36,8 +121,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 1,
         iconTheme: IconThemeData(color: iconColor),
-
-        // 🌙 Dark mode toggle button (moon/sun icon)
         actions: [
           IconButton(
             icon: Icon(
@@ -52,8 +135,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           ),
         ],
       ),
-
-      // 🌈 Background gradient similar to Welcome page
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -81,8 +162,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // 🪪 PERSONAL INFO CARD
                 Card(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -94,33 +173,26 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     child: Column(
                       children: [
                         _buildTextField(
+                          controller: _fullNameController,
                           label: "Full Name",
                           icon: Icons.person_outline,
                           inputType: TextInputType.name,
                           isDarkMode: isDarkMode,
                         ),
                         _buildTextField(
+                          controller: _usernameController,
                           label: "Username",
                           icon: Icons.account_circle_outlined,
                           inputType: TextInputType.text,
                           isDarkMode: isDarkMode,
                         ),
-                        _buildTextField(
-                          label: "Email Address",
-                          icon: Icons.email_outlined,
-                          inputType: TextInputType.emailAddress,
-                          isDarkMode: isDarkMode,
-                        ),
-
-                        // 🎂 Birthday (Calendar Picker)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 20),
                           child: TextField(
                             controller: _birthdateController,
                             readOnly: true,
                             style: TextStyle(
-                                color:
-                                isDarkMode ? Colors.white : Colors.black),
+                                color: isDarkMode ? Colors.white : Colors.black),
                             decoration: InputDecoration(
                               labelText: "Birthday",
                               labelStyle: TextStyle(
@@ -128,10 +200,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                                     ? Colors.white70
                                     : Colors.deepPurple,
                               ),
-                              prefixIcon: Icon(
-                                Icons.cake_outlined,
-                                color: iconColor,
-                              ),
+                              prefixIcon:
+                              Icon(Icons.cake_outlined, color: iconColor),
                               suffixIcon: const Icon(Icons.calendar_month),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -165,13 +235,11 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                                     data: Theme.of(context).copyWith(
                                       colorScheme: isDarkMode
                                           ? const ColorScheme.dark(
-                                        primary: Colors.deepPurple,
-                                        onSurface: Colors.white,
-                                      )
+                                          primary: Colors.deepPurple,
+                                          onSurface: Colors.white)
                                           : const ColorScheme.light(
-                                        primary: Colors.deepPurple,
-                                        onSurface: Colors.black,
-                                      ),
+                                          primary: Colors.deepPurple,
+                                          onSurface: Colors.black),
                                     ),
                                     child: child!,
                                   );
@@ -187,18 +255,16 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                             },
                           ),
                         ),
-
-                        // 👩 Gender Dropdown
                         DropdownButtonFormField<String>(
-                          initialValue: gender,
+                          value: gender,
                           dropdownColor: isDarkMode
                               ? const Color(0xFF2C2C2C)
                               : Colors.white,
                           decoration: InputDecoration(
                             labelText: "Gender",
                             labelStyle: TextStyle(color: textColor),
-                            prefixIcon: Icon(Icons.person_2_outlined,
-                                color: iconColor),
+                            prefixIcon:
+                            Icon(Icons.person_2_outlined, color: iconColor),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -211,37 +277,24 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                             DropdownMenuItem(value: "Male", child: Text("Male")),
                             DropdownMenuItem(
                                 value: "Female", child: Text("Female")),
-                            DropdownMenuItem(
-                                value: "Other", child: Text("Other")),
+                            DropdownMenuItem(value: "Other", child: Text("Other")),
                           ],
                           onChanged: (value) => setState(() => gender = value),
                           style: TextStyle(color: textColor),
                         ),
                         const SizedBox(height: 20),
-
                         _buildTextField(
+                          controller: _contactController,
                           label: "Contact Number",
                           icon: Icons.phone_outlined,
                           inputType: TextInputType.phone,
                           isDarkMode: isDarkMode,
                         ),
                         const SizedBox(height: 30),
-
-                        // 💾 SAVE BUTTON
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                      "Personal information saved successfully!"),
-                                  backgroundColor: isDarkMode
-                                      ? Colors.purpleAccent
-                                      : Colors.deepPurple,
-                                ),
-                              );
-                            },
+                            onPressed: _saveUserInfo,
                             icon: const Icon(Icons.save_outlined),
                             label: const Text(
                               "Save Changes",
@@ -271,24 +324,27 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
-  // 🔹 Reusable textfield widget
   Widget _buildTextField({
+    required TextEditingController controller,
     required String label,
     required IconData icon,
     required TextInputType inputType,
     required bool isDarkMode,
+    bool readOnly = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: TextField(
+        controller: controller,
         keyboardType: inputType,
+        readOnly: readOnly,
         style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
         decoration: InputDecoration(
           labelText: label,
           labelStyle:
           TextStyle(color: isDarkMode ? Colors.white70 : Colors.deepPurple),
-          prefixIcon:
-          Icon(icon, color: isDarkMode ? Colors.purpleAccent : Colors.deepPurple),
+          prefixIcon: Icon(icon,
+              color: isDarkMode ? Colors.purpleAccent : Colors.deepPurple),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
@@ -9,17 +11,41 @@ class FeedbackScreen extends StatefulWidget {
 
 class _FeedbackScreenState extends State<FeedbackScreen> {
   final TextEditingController _feedbackController = TextEditingController();
+  bool _isSubmitting = false;
 
-  void _submitFeedback() {
-    if (_feedbackController.text.isNotEmpty) {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  Future<void> _submitFeedback() async {
+    final user = _auth.currentUser;
+    final feedbackText = _feedbackController.text.trim();
+
+    if (feedbackText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ Please enter your feedback.")),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await _firestore.collection('feedback').add({
+        'uid': user?.uid ?? 'anonymous',
+        'feedback': feedbackText,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Thank you for your feedback!")),
       );
       _feedbackController.clear();
-    } else {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Please enter your feedback.")),
+        SnackBar(content: Text("❌ Failed to submit feedback: $e")),
       );
+    } finally {
+      setState(() => _isSubmitting = false);
     }
   }
 
@@ -28,7 +54,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Feedback"),
-        backgroundColor: Colors.purple,
+        backgroundColor: Colors.deepPurple,
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -55,18 +82,28 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _submitFeedback,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _submitFeedback,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isSubmitting
+                    ? const CircularProgressIndicator(
+                  color: Colors.white,
+                )
+                    : const Text(
+                  "Submit",
+                  style: TextStyle(fontSize: 16),
                 ),
               ),
-              child: const Text("Submit"),
-            )
+            ),
           ],
         ),
       ),

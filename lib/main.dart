@@ -8,12 +8,15 @@ import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
+import 'screens/personal_info_screen.dart'; // ✅ import your PersonalInfoScreen
 import 'notification_service.dart';
 import 'dart:async';
 
 // 👇 Top-level background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   debugPrint("Handling background message: ${message.messageId}");
 }
 
@@ -67,6 +70,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/personal-info': (context) => const PersonalInfoScreen(), // ✅ add route
       },
     );
   }
