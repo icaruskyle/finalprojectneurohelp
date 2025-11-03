@@ -48,7 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final userEmail = result.docs.first['email'];
+      final userDoc = result.docs.first;
+      final userEmail = userDoc['email'];
+      final is2FAEnabled = userDoc.data().toString().contains('is2FAEnabled')
+          ? userDoc['is2FAEnabled']
+          : false;
 
       // 🔹 Sign in with Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
@@ -56,20 +60,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = userCredential.user;
 
-      if (user != null && !user.emailVerified) {
-        _showVerificationDialog(user);
-        setState(() => _isLoading = false);
-        return;
-      }
+      if (user != null) {
+        // 🔹 Check if email is verified
+        if (!user.emailVerified) {
+          _showVerificationDialog(user);
+          setState(() => _isLoading = false);
+          return;
+        }
 
-      _showSnackBar("Login successful! 🎉", Colors.green);
-      await Future.delayed(const Duration(milliseconds: 800));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(username: username),
-        ),
-      );
+        if (is2FAEnabled) {
+          _showSnackBar("Login successful with 2FA! 🎉", Colors.green);
+        } else {
+          _showSnackBar("Login successful! 🎉", Colors.green);
+        }
+
+        await Future.delayed(const Duration(milliseconds: 800));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (_) => DashboardScreen(username: username)),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = "Login failed";
       if (e.code == 'wrong-password') message = "Invalid password";
@@ -89,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context) => AlertDialog(
         title: const Text("Email not verified"),
         content: const Text(
-            "Your email is not verified. Please check your inbox or resend the verification email."),
+            "Your email is not verified. Please check your inbox or resend the verification email to enable 2FA."),
         actions: [
           TextButton(
             onPressed: () async {
@@ -140,7 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 🌿 App Icon
                   AnimatedContainer(
                     duration: const Duration(seconds: 1),
                     curve: Curves.easeInOut,
@@ -157,8 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // 🧠 Title
                   Text(
                     "Welcome Back to NeuroHelp",
                     textAlign: TextAlign.center,
@@ -168,14 +176,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: isDark ? Colors.white : Colors.deepPurple.shade800,
                     ),
                   ),
-
                   const SizedBox(height: 30),
-
-                  // 🧍 Username field
                   TextField(
                     controller: usernameController,
-                    style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black),
+                    style:
+                    TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       labelText: "Username",
                       labelStyle: TextStyle(
@@ -192,13 +197,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // 🔒 Password field
                   TextField(
                     controller: passwordController,
                     obscureText: _obscurePassword,
-                    style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black),
+                    style:
+                    TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       labelText: "Password",
                       labelStyle: TextStyle(
@@ -224,8 +227,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
-                  // 🔁 Forgot Password Button
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -245,17 +246,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 10),
-
-                  // Error Message
                   if (errorMessage != null)
                     Text(errorMessage!,
                         style: const TextStyle(color: Colors.red)),
-
                   const SizedBox(height: 20),
-
-                  // 🚀 Login Button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
@@ -271,13 +265,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Login",
-                        style: TextStyle(fontSize: 18)),
+                        : const Text("Login", style: TextStyle(fontSize: 18)),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // 📝 Sign Up link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

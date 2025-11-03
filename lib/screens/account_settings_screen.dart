@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../notification_service.dart';
 
@@ -11,9 +12,12 @@ class AccountSettingsScreen extends StatefulWidget {
 
 class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   bool _notificationsEnabled = true;
-  TimeOfDay _dailyTime = const TimeOfDay(hour: 9, minute: 0); // default 9:00 AM
+  TimeOfDay _dailyTime = const TimeOfDay(hour: 9, minute: 0);
+  bool _is2FAEnabled = false;
+  String _selectedLanguage = 'English';
 
   final NotificationService _notificationService = NotificationService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void initState() {
@@ -25,34 +29,19 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
-
       int hour = prefs.getInt('dailyHour') ?? 9;
       int minute = prefs.getInt('dailyMinute') ?? 0;
       _dailyTime = TimeOfDay(hour: hour, minute: minute);
+      _is2FAEnabled = prefs.getBool('is2FAEnabled') ?? false;
+      _selectedLanguage = prefs.getString('language') ?? 'English';
 
       _notificationService.notificationsEnabled = _notificationsEnabled;
-
       if (_notificationsEnabled) {
         _scheduleDailyNotification();
       } else {
         _notificationService.cancelAllNotifications();
       }
     });
-  }
-
-  Future<void> _toggleNotifications(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notificationsEnabled = value;
-      _notificationService.notificationsEnabled = value;
-    });
-    await prefs.setBool('notificationsEnabled', value);
-
-    if (value) {
-      _scheduleDailyNotification();
-    } else {
-      _notificationService.cancelAllNotifications();
-    }
   }
 
   Future<void> _pickTime() async {
@@ -67,26 +56,123 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       });
       await prefs.setInt('dailyHour', picked.hour);
       await prefs.setInt('dailyMinute', picked.minute);
-
-      if (_notificationsEnabled) {
-        _scheduleDailyNotification();
-      }
+      if (_notificationsEnabled) _scheduleDailyNotification();
     }
   }
 
   void _scheduleDailyNotification() {
     _notificationService.scheduleDailyNotification(
-      title: 'NeuroHelp Daily Reminder 💜',
-      body: 'Take a short break and check your mental health today.',
+      title: _selectedLanguage == 'Filipino'
+          ? '💜 Paalala mula sa NeuroHelp'
+          : 'NeuroHelp Daily Reminder 💜',
+      body: _selectedLanguage == 'Filipino'
+          ? 'Magpahinga sandali at suriin ang iyong kalusugan sa pag-iisip ngayon.'
+          : 'Take a short break and check your mental health today.',
       time: _dailyTime,
     );
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notificationsEnabled = value;
+      _notificationService.notificationsEnabled = value;
+    });
+    await prefs.setBool('notificationsEnabled', value);
+    if (value) {
+      _scheduleDailyNotification();
+    } else {
+      _notificationService.cancelAllNotifications();
+    }
+  }
+
+  Future<void> _changeLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Select Language / Piliin ang Wika"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<String>(
+                title: const Text('English'),
+                value: 'English',
+                groupValue: _selectedLanguage,
+                onChanged: (value) {
+                  setState(() => _selectedLanguage = value!);
+                  Navigator.pop(context);
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('Filipino'),
+                value: 'Filipino',
+                groupValue: _selectedLanguage,
+                onChanged: (value) {
+                  setState(() => _selectedLanguage = value!);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    await prefs.setString('language', _selectedLanguage);
+    setState(() {});
+  }
+
+  // 🔒 Enable or Disable Email 2FA
+  Future<void> _toggle2FA(bool enable) async {
+    final prefs = await SharedPreferences.getInstance();
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    if (enable) {
+      if (!user.emailVerified) {
+        // Ask user to verify email first
+        await user.sendEmailVerification();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_selectedLanguage == 'Filipino'
+                ? '📧 I-resend ang verification email at i-verify ang iyong email bago paganahin ang 2FA.'
+                : '📧 Verification email sent! Please verify your email to enable 2FA.'),
+          ),
+        );
+      } else {
+        setState(() => _is2FAEnabled = true);
+        await prefs.setBool('is2FAEnabled', true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_selectedLanguage == 'Filipino'
+                ? '✅ Email 2FA pinagana!'
+                : '✅ Email 2FA enabled!'),
+          ),
+        );
+      }
+    } else {
+      setState(() => _is2FAEnabled = false);
+      await prefs.setBool('is2FAEnabled', false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_selectedLanguage == 'Filipino'
+              ? '❌ Email 2FA pinatay.'
+              : '❌ Email 2FA disabled.'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Account Settings"),
+        title: Text(
+          _selectedLanguage == 'Filipino'
+              ? "Mga Setting ng Account"
+              : "Account Settings",
+        ),
         backgroundColor: Colors.purple,
       ),
       body: SingleChildScrollView(
@@ -98,22 +184,36 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           elevation: 4,
           child: Column(
             children: [
-              // 🔔 Notifications toggle
+              // 🔔 Notifications
               SwitchListTile(
-                secondary: const Icon(Icons.notifications, color: Colors.deepPurple),
-                title: const Text("Notifications"),
+                secondary:
+                const Icon(Icons.notifications, color: Colors.deepPurple),
+                title: Text(
+                  _selectedLanguage == 'Filipino'
+                      ? "Mga Abiso"
+                      : "Notifications",
+                ),
                 subtitle: Text(
                   _notificationsEnabled
-                      ? "Daily reminder at ${_dailyTime.format(context)}"
-                      : "Notifications are off",
+                      ? (_selectedLanguage == 'Filipino'
+                      ? "Paalala araw-araw tuwing ${_dailyTime.format(context)}"
+                      : "Daily reminder at ${_dailyTime.format(context)}")
+                      : (_selectedLanguage == 'Filipino'
+                      ? "Naka-off ang mga abiso"
+                      : "Notifications are off"),
                 ),
                 value: _notificationsEnabled,
                 onChanged: _toggleNotifications,
               ),
               if (_notificationsEnabled)
                 ListTile(
-                  leading: const Icon(Icons.access_time, color: Colors.deepPurple),
-                  title: const Text("Set Daily Reminder Time"),
+                  leading:
+                  const Icon(Icons.access_time, color: Colors.deepPurple),
+                  title: Text(
+                    _selectedLanguage == 'Filipino'
+                        ? "Itakda ang Oras ng Paalala"
+                        : "Set Daily Reminder Time",
+                  ),
                   subtitle: Text(_dailyTime.format(context)),
                   trailing: const Icon(Icons.edit),
                   onTap: _pickTime,
@@ -121,22 +221,41 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
               const Divider(),
 
-              // 🔒 Security / 2FA
-              const ListTile(
-                leading: Icon(Icons.security, color: Colors.deepPurple),
-                title: Text("Security"),
-                subtitle: Text("Two-factor authentication and login alerts"),
-                trailing: Icon(Icons.arrow_forward_ios),
+              // 🔒 Email 2FA
+              SwitchListTile(
+                secondary:
+                const Icon(Icons.security, color: Colors.deepPurple),
+                title: Text(
+                  _selectedLanguage == 'Filipino'
+                      ? "Two-Factor Authentication (2FA)"
+                      : "Two-Factor Authentication (2FA)",
+                ),
+                subtitle: Text(
+                  _is2FAEnabled
+                      ? (_selectedLanguage == 'Filipino'
+                      ? "Pinagana gamit ang email"
+                      : "Enabled with email")
+                      : (_selectedLanguage == 'Filipino'
+                      ? "Hindi pa pinagana"
+                      : "Not enabled yet"),
+                ),
+                value: _is2FAEnabled,
+                onChanged: _toggle2FA,
               ),
 
               const Divider(),
 
-              // 🌐 Language
-              const ListTile(
-                leading: Icon(Icons.language, color: Colors.deepPurple),
-                title: Text("Language"),
-                subtitle: Text("Change app language"),
-                trailing: Icon(Icons.arrow_forward_ios),
+              // 🌐 Language Setting
+              ListTile(
+                leading: const Icon(Icons.language, color: Colors.deepPurple),
+                title: Text(_selectedLanguage == 'Filipino'
+                    ? "Wika"
+                    : "Language"),
+                subtitle: Text(_selectedLanguage == 'Filipino'
+                    ? "Baguhin ang wika ng app"
+                    : "Change app language"),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: _changeLanguage,
               ),
             ],
           ),

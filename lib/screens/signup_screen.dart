@@ -34,8 +34,16 @@ class _SignupScreenState extends State<SignupScreen> {
   // ------------------ Email/Password Signup ------------------
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // ✅ Check if user agreed to terms
     if (!_isAgreed) {
       _showSnackBar("Please agree to the Privacy Policy and Terms.", Colors.red);
+      return;
+    }
+
+    // ✅ Check if passwords match (extra validation)
+    if (passwordController.text.trim() != confirmController.text.trim()) {
+      _showSnackBar("Passwords do not match.", Colors.redAccent);
       return;
     }
 
@@ -63,18 +71,24 @@ class _SignupScreenState extends State<SignupScreen> {
 
       await userCredential.user?.sendEmailVerification();
 
-      // ✅ Store user data in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+      // ✅ Store user data in Firestore (including terms agreement)
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
         'fullName': fullController.text.trim(),
         'username': usernameController.text.trim().toLowerCase(),
         'email': emailController.text.trim(),
         'birthday': birthController.text.trim(),
         'gender': gender ?? '',
         'contactNumber': numController.text.trim(),
+        'agreedToTerms': _isAgreed, // ✅ store whether user agreed
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnackBar("Account created! Please verify your email before logging in.", Colors.green);
+      _showSnackBar(
+          "Account created! Please verify your email before logging in.",
+          Colors.green);
 
       await Future.delayed(const Duration(seconds: 1));
       Navigator.pushReplacement(
@@ -111,7 +125,8 @@ class _SignupScreenState extends State<SignupScreen> {
         accessToken: googleAuth.accessToken,
       );
 
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      UserCredential userCredential =
+      await _auth.signInWithCredential(credential);
 
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -119,15 +134,21 @@ class _SignupScreenState extends State<SignupScreen> {
           .get();
 
       if (!userDoc.exists) {
-        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
           'fullName': userCredential.user?.displayName ?? '',
-          'username': (userCredential.user?.displayName ?? userCredential.user?.uid ?? '')
+          'username': (userCredential.user?.displayName ??
+              userCredential.user?.uid ??
+              '')
               .replaceAll(' ', '')
               .toLowerCase(),
           'email': userCredential.user?.email ?? '',
           'birthday': '',
           'gender': '',
           'contactNumber': '',
+          'agreedToTerms': true, // ✅ Automatically true for Google sign-up
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
@@ -179,17 +200,21 @@ class _SignupScreenState extends State<SignupScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    const Icon(Icons.person_add, size: 80, color: Colors.deepPurple),
+                    const Icon(Icons.person_add,
+                        size: 80, color: Colors.deepPurple),
                     const SizedBox(height: 20),
                     Text(
                       "Create Account",
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.deepPurple.shade800,
+                        color: isDark
+                            ? Colors.white
+                            : Colors.deepPurple.shade800,
                       ),
                     ),
                     const SizedBox(height: 30),
+
 
                     _buildTextField(fullController, "Full Name", Icons.person),
                     const SizedBox(height: 16),

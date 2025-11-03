@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:projects/screens/login_screen.dart';
 import 'daily_journal_screen.dart';
 import 'mood_updates_screen.dart';
-import 'music_screen.dart'; // ✅ Spotify-connected music screen
+import 'music_screen.dart';
 import 'welcome_screen.dart';
 import 'emergency_contacts_screen.dart';
 import 'self_help_screen.dart';
@@ -38,13 +41,202 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _isDarkMode = !_isDarkMode);
   }
 
-  // ---------- Theme Colors ----------
+  // ---------- THEME COLORS ----------
   Color get primary => Colors.deepPurple;
   Color get background => _isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
   Color get cardColor => _isDarkMode ? const Color(0xFF2C2C2E) : Colors.white;
   Color get textPrimary => _isDarkMode ? Colors.white : Colors.deepPurple.shade900;
   Color get textSecondary => _isDarkMode ? Colors.white70 : Colors.black87;
   Color get accent => _isDarkMode ? Colors.purpleAccent : Colors.deepPurple;
+
+  // ---------- DELETE ACCOUNT FUNCTION ----------
+  Future<void> _confirmDeleteAccount() async {
+    int countdown = 5;
+    bool confirmed = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            Future.delayed(const Duration(seconds: 1), () {
+              if (countdown > 0) setState(() => countdown--);
+            });
+
+            return AlertDialog(
+              title: const Text("Delete Account"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "This will permanently delete your account and all your data including:\n\n"
+                        "• Personal Information\n"
+                        "• Daily Journal Entries\n"
+                        "• Mood Updates\n"
+                        "• Feedback and Settings\n\n"
+                        "This action cannot be undone.",
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    countdown > 0
+                        ? "Please wait $countdown seconds before confirming..."
+                        : "You can now confirm deletion.",
+                    style: TextStyle(
+                      color: countdown > 0 ? Colors.redAccent : Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: countdown > 0
+                      ? null
+                      : () {
+                    confirmed = true;
+                    Navigator.pop(context);
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.red,
+                  ),
+                  child: const Text("Delete Account"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed) {
+      await _reauthenticateAndDeleteUser();
+    }
+  }
+
+  Future<void> _reauthenticateAndDeleteUser() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final firestore = FirebaseFirestore.instance;
+      if (user == null) return;
+
+      // 🔹 REAUTHENTICATE
+      final providerData = user.providerData.first;
+      if (providerData.providerId == 'password') {
+        String? email = user.email;
+        String? password;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            final TextEditingController passController = TextEditingController();
+            return AlertDialog(
+              title: const Text("Reauthenticate"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Please re-enter your password for $email to continue."),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: passController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "Password",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, null),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pop(context, passController.text),
+                  child: const Text("Confirm"),
+                ),
+              ],
+            );
+          },
+        ).then((value) => password = value);
+
+        if (password == null || password!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("❌ Reauthentication canceled")),
+          );
+          return;
+        }
+
+        final credential = EmailAuthProvider.credential(
+          email: email!,
+          password: password!,
+        );
+        await user.reauthenticateWithCredential(credential);
+      } else if (providerData.providerId == 'google.com') {
+        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+        final GoogleSignInAuthentication? googleAuth =
+        await googleUser?.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth?.accessToken,
+          idToken: googleAuth?.idToken,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
+
+      // 🔹 DELETE ALL DATA CONNECTED TO USER
+      final uid = user.uid;
+
+      // Delete user document in "users" collection
+      final userDoc = await firestore.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        await firestore.collection('users').doc(uid).delete();
+      }
+
+      // 🔹 (Optional) Delete other related collections (if you have them)
+      // Example: journals, moods, feedbacks, etc.
+      final relatedCollections = ['journals', 'moods', 'feedbacks'];
+      for (final col in relatedCollections) {
+        final snapshots = await firestore
+            .collection(col)
+            .where('userId', isEqualTo: uid)
+            .get();
+        for (final doc in snapshots.docs) {
+          await firestore.collection(col).doc(doc.id).delete();
+        }
+      }
+
+      // 🔹 DELETE AUTH ACCOUNT
+      await user.delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+            Text("✅ Your account and all data were deleted successfully."),
+          ),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error deleting account: $e")),
+      );
+    }
+  }
+
 
   // ---------- HOME TAB ----------
   Widget _buildHome() {
@@ -205,7 +397,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------- Heneuro (AI) ----------
+  // ---------- HENEУRO (AI) ----------
   Widget _buildHeneuro() {
     return Container(
       color: background,
@@ -323,14 +515,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 content: const Text("Are you sure you want to logout?"),
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context), // Cancel
+                    onPressed: () => Navigator.pop(context),
                     child: const Text("Cancel"),
                   ),
                   TextButton(
                     onPressed: () {
-                      // Optional: Firebase sign out
-                      // FirebaseAuth.instance.signOut();
-
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -343,9 +532,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             );
           } else if (isDelete) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("⚠️ Account deleted (placeholder)")),
-            );
+            _confirmDeleteAccount();
           } else if (screen != null) {
             Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
           }
