@@ -25,6 +25,8 @@ dependencies:
   cloud_firestore: ^5.4.4
   google_sign_in: ^6.2.1
   webview_flutter: ^4.7.0
+  image_picker: ^1.2.0
+  firebase_storage: ^12.4.10
 
 dev_dependencies:
   flutter_test:
@@ -37,15 +39,15 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/
+    - assets/images/   # include your avatars here
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.png" # <-- replace with your logo filename
+  image_path: "assets/images/logo.png"
 
 flutter_native_splash:
-  color: "#FFFFFF" # background color for splash
-  image: assets/images/logo.png # same logo or simplified one
+  color: "#FFFFFF"
+  image: assets/images/logo.png
   android: true
   ios: true
