@@ -3,12 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
-import 'screens/personal_info_screen.dart'; // ✅ import your PersonalInfoScreen
+import 'screens/personal_info_screen.dart';
 import 'notification_service.dart';
 import 'dart:async';
 

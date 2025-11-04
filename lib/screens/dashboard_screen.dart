@@ -9,6 +9,8 @@ import 'events_screen.dart';
 import 'community_support_screen.dart';
 import 'profile_tab.dart';
 import 'login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 
 class DashboardScreen extends StatefulWidget {
@@ -23,6 +25,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
   bool _isDarkMode = false;
+
+  String? _userAvatar;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserAvatar();
+  }
+
+  Future<void> _loadUserAvatar() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userAvatar = prefs.getString('selectedAvatar');
+    });
+  }
+
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -53,10 +71,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: primary.withOpacity(0.2),
-                child: Icon(Icons.person, color: accent, size: 35),
+              GestureDetector(
+                onTap: () async {
+                  // Go to Profile tab by changing bottom nav index instead of creating new ProfileTab
+                  setState(() {
+                    _selectedIndex = 4; // assuming index 4 is for Profile
+                  });
+                },
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: primary.withOpacity(0.2),
+                  backgroundImage:
+                  _userAvatar != null ? AssetImage(_userAvatar!) : null,
+                  child: _userAvatar == null
+                      ? Icon(Icons.person, color: accent, size: 35)
+                      : null,
+                ),
               ),
               const SizedBox(width: 15),
               Column(
