@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math';
+import 'ai_service.dart';
 import 'mood_updates_screen.dart';
 import 'emergency_contacts_screen.dart';
 
@@ -17,6 +18,7 @@ class DailyJournalScreen extends StatefulWidget {
 
 class _DailyJournalScreenState extends State<DailyJournalScreen> {
   final TextEditingController _controller = TextEditingController();
+  final AIService ai = AIService();
 
   @override
   void dispose() {
@@ -24,13 +26,10 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     super.dispose();
   }
 
+  // ---------------- Save Journal Entry ----------------
   Future<void> _saveEntry() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-
-    final suicidalDetected = _detectSuicidalRisk(text);
-    final mood = _predictMood(text);
-    final date = DateTime.now().toIso8601String();
 
     _controller.clear();
 
@@ -45,19 +44,29 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
           .doc(widget.username)
           .collection('mood_history');
 
+      // Detect suicidal risk
+      final suicidalDetected = _detectSuicidalRisk(text);
+
+      // AI predicts mood
+      final mood = await ai.predictMood(text);
+
+      final date = DateTime.now().toIso8601String();
+
       // Save journal entry
-      await journalRef.add({
+      final journalDocRef = await journalRef.add({
         'text': text,
         'mood': mood,
         'date': date,
       });
 
-      // Save mood history
+      // Save mood history with journalId link
       await moodHistoryRef.add({
         'mood': mood,
         'date': date,
+        'journalId': journalDocRef.id, // Link mood to journal
       });
 
+      // Show alert if suicidal content detected
       if (suicidalDetected) {
         await _showSuicidalAlertDialog();
       } else {
@@ -80,17 +89,34 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     }
   }
 
-  Future<void> _deleteEntry(String docId) async {
+  // ---------------- Delete Journal Entry & Linked Mood ----------------
+  Future<void> _deleteEntry(String journalId) async {
     try {
       final journalRef = FirebaseFirestore.instance
           .collection('users')
           .doc(widget.username)
           .collection('daily_journal');
-      await journalRef.doc(docId).delete();
+
+      final moodHistoryRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.username)
+          .collection('mood_history');
+
+      // Delete journal entry
+      await journalRef.doc(journalId).delete();
+
+      // Delete linked mood entries
+      final moodSnapshot = await moodHistoryRef
+          .where('journalId', isEqualTo: journalId)
+          .get();
+
+      for (var doc in moodSnapshot.docs) {
+        await doc.reference.delete();
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Journal entry deleted.")),
+          const SnackBar(content: Text("Journal entry and linked mood deleted.")),
         );
       }
     } catch (e) {
@@ -102,6 +128,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     }
   }
 
+  // ---------------- Suicidal Alert ----------------
   Future<void> _showSuicidalAlertDialog() async {
     const defaultHelplineNumber = "+15551234567";
     const fallbackHelplineUrl = "https://findahelpline.com";
@@ -199,6 +226,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     );
   }
 
+  // ---------------- Suicidal Detection ----------------
   bool _detectSuicidalRisk(String text) {
     final lower = text.toLowerCase();
     final critical = [
@@ -228,18 +256,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       if (lower.contains(p)) return true;
     }
     return false;
-  }
-
-  String _predictMood(String text) {
-    final lower = text.toLowerCase();
-    if (_detectSuicidalRisk(lower)) return "⚠️ Warning: Suicidal Content Detected";
-    if (lower.contains("happy") || lower.contains("excited") || lower.contains("joy") || lower.contains("grateful")) return "😊 Happy";
-    if (lower.contains("sad") || lower.contains("depressed") || lower.contains("lonely") || lower.contains("cry")) return "😢 Sad";
-    if (lower.contains("angry") || lower.contains("mad") || lower.contains("frustrated")) return "😡 Angry";
-    if (lower.contains("calm") || lower.contains("relaxed") || lower.contains("peaceful")) return "🧘 Calm";
-    if (lower.contains("anxious") || lower.contains("nervous") || lower.contains("worried")) return "😟 Anxious";
-    final randomMoods = ["🙂 Neutral", "🤔 Reflective", "😌 Content"];
-    return randomMoods[Random().nextInt(randomMoods.length)];
   }
 
   @override
@@ -293,8 +309,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               child: const Text("Save Entry"),
             ),
             const SizedBox(height: 20),
-
-            // 🔹 Display journal entries
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -334,7 +348,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
                                 context: context,
                                 builder: (context) => AlertDialog(
                                   title: const Text("Delete Entry"),
-                                  content: const Text("Are you sure you want to delete this entry?"),
+                                  content: const Text("Are you sure you want to delete this entry along with its mood history?"),
                                   actions: [
                                     TextButton(
                                       onPressed: () => Navigator.pop(context),

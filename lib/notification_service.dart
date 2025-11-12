@@ -140,7 +140,41 @@ class NotificationService {
       matchDateTimeComponents: DateTimeComponents.time,
     );
 
-    debugPrint("✅ Notification scheduled for: $scheduledDate");
+    debugPrint("✅ Daily notification scheduled for: $scheduledDate");
+  }
+
+  /// Schedule hourly mood check notification
+  Future<void> scheduleHourlyMoodNotification() async {
+    if (!notificationsEnabled) return;
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'neurohelp_channel_hourly',
+      'Hourly Mood Check',
+      channelDescription: 'Ask user about mood every hour',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+
+    final now = tz.TZDateTime.now(tz.local);
+
+    // Schedule first notification for the next full hour
+    tz.TZDateTime firstHour =
+    tz.TZDateTime(tz.local, now.year, now.month, now.day, now.hour + 1);
+
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      2,
+      "How's your mood?",
+      "Please update your mood for this hour.",
+      firstHour,
+      platformDetails,
+      androidAllowWhileIdle: true,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time, // Will repeat daily same hour
+    );
+
+    debugPrint("✅ Hourly mood notification scheduled starting: $firstHour");
   }
 
   /// Cancel all notifications

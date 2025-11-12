@@ -62,6 +62,64 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
     }).toList();
   }
 
+  // ---------------- Delete Mood & Linked Journal ----------------
+  Future<void> _deleteMoodEntry(String moodId, String? journalId) async {
+    final moodRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.username)
+        .collection('mood_history');
+
+    final journalRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.username)
+        .collection('daily_journal');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Mood Entry"),
+        content: const Text(
+            "Are you sure you want to delete this mood entry? It will also delete the linked journal entry."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                // Delete mood entry
+                await moodRef.doc(moodId).delete();
+
+                // Delete linked journal entry if exists
+                if (journalId != null && journalId.isNotEmpty) {
+                  await journalRef.doc(journalId).delete();
+                }
+
+                Navigator.pop(context);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                        Text("Mood entry and linked journal deleted.")),
+                  );
+                }
+              } catch (e) {
+                Navigator.pop(context);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error deleting: $e")),
+                  );
+                }
+              }
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -175,6 +233,7 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
                       final date = data['date'] != null
                           ? DateTime.parse(data['date']).toLocal().toString().split(' ')[0]
                           : '';
+                      final journalId = data['journalId'] ?? null;
 
                       return Card(
                         color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
@@ -194,33 +253,7 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
                               style: TextStyle(color: isDark ? Colors.purple[200] : Colors.black87)),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.redAccent),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text("Delete Mood Entry"),
-                                  content: const Text("Are you sure you want to delete this mood entry?"),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text("Cancel"),
-                                    ),
-                                    TextButton(
-                                      onPressed: () async {
-                                        await FirebaseFirestore.instance
-                                            .collection('users')
-                                            .doc(widget.username)
-                                            .collection('mood_history')
-                                            .doc(docId)
-                                            .delete();
-                                        Navigator.pop(context);
-                                      },
-                                      child: const Text("Delete", style: TextStyle(color: Colors.red)),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                            onPressed: () => _deleteMoodEntry(docId, journalId),
                           ),
                         ),
                       );
