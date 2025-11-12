@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CommunitySupportScreen extends StatefulWidget {
-  const CommunitySupportScreen({super.key});
+  final bool isDarkMode;
+  const CommunitySupportScreen({super.key, required this.isDarkMode});
 
   @override
   State<CommunitySupportScreen> createState() => _CommunitySupportScreenState();
@@ -87,7 +88,8 @@ class _CommunitySupportScreenState extends State<CommunitySupportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter list based on category and search
+    final isDark = widget.isDarkMode;
+
     final filteredGroups = _supportGroups.where((group) {
       final matchesCategory =
           _selectedCategory == 'All' || group['category'] == _selectedCategory;
@@ -107,16 +109,15 @@ class _CommunitySupportScreenState extends State<CommunitySupportScreen> {
       ),
       body: Column(
         children: [
-          // 🔍 Search bar
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                prefixIcon: Icon(Icons.search, color: isDark ? Colors.white : Colors.deepPurple),
                 hintText: "Search support groups...",
                 filled: true,
-                fillColor: Colors.deepPurple.shade50,
+                fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
@@ -125,18 +126,15 @@ class _CommunitySupportScreenState extends State<CommunitySupportScreen> {
               onChanged: (_) => setState(() {}),
             ),
           ),
-
-          // 🎯 Category filter
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: DropdownButtonFormField<String>(
               value: _selectedCategory,
               decoration: InputDecoration(
                 labelText: "Filter by Category",
-                prefixIcon:
-                const Icon(Icons.filter_list, color: Colors.deepPurple),
+                prefixIcon: Icon(Icons.filter_list, color: isDark ? Colors.white : Colors.deepPurple),
                 filled: true,
-                fillColor: Colors.deepPurple.shade50,
+                fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -149,32 +147,25 @@ class _CommunitySupportScreenState extends State<CommunitySupportScreen> {
                 DropdownMenuItem(value: 'Youth Support', child: Text('Youth Support')),
                 DropdownMenuItem(value: 'Hotlines', child: Text('Hotlines')),
               ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value!;
-                });
-              },
+              onChanged: (value) => setState(() => _selectedCategory = value!),
             ),
           ),
-
           const SizedBox(height: 10),
-
-          // 🧑‍🤝‍🧑 Support group cards
           Expanded(
             child: filteredGroups.isEmpty
-                ? const Center(
+                ? Center(
               child: Text(
                 "No community support groups found.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.grey),
               ),
             )
                 : ListView.builder(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: filteredGroups.length,
               itemBuilder: (context, index) {
                 final item = filteredGroups[index];
                 return Card(
+                  color: isDark ? Colors.grey[850] : Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
@@ -182,26 +173,28 @@ class _CommunitySupportScreenState extends State<CommunitySupportScreen> {
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
-                    leading: const Icon(Icons.groups,
-                        color: Colors.deepPurple, size: 30),
+                    leading: Icon(Icons.groups,
+                        color: isDark ? Colors.purpleAccent : Colors.deepPurple, size: 30),
                     title: Text(
                       item['name']!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
-                        color: Colors.deepPurple,
+                        color: isDark ? Colors.white : Colors.deepPurple,
                       ),
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
                         item['description']!,
-                        style: const TextStyle(fontSize: 15),
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
                       ),
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.open_in_new,
-                          color: Colors.deepPurple),
+                      icon: Icon(Icons.open_in_new, color: isDark ? Colors.purpleAccent : Colors.deepPurple),
                       onPressed: () => _launchURL(item['link']!),
                     ),
                   ),

@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 class MindfulnessScreen extends StatefulWidget {
-  const MindfulnessScreen({super.key});
+  final bool isDarkMode;
+  const MindfulnessScreen({super.key, this.isDarkMode = false});
 
   @override
   State<MindfulnessScreen> createState() => _MindfulnessScreenState();
@@ -23,7 +24,7 @@ class _MindfulnessScreenState extends State<MindfulnessScreen> {
   Timer? _timer;
 
   void startMindfulness() {
-    step = 0;
+    setState(() => step = 0);
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (step < steps.length - 1) {
@@ -34,6 +35,11 @@ class _MindfulnessScreenState extends State<MindfulnessScreen> {
     });
   }
 
+  void resetMindfulness() {
+    _timer?.cancel();
+    setState(() => step = 0);
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -42,50 +48,93 @@ class _MindfulnessScreenState extends State<MindfulnessScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+    final bgGradient = isDark
+        ? const LinearGradient(
+      colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    )
+        : const LinearGradient(
+      colors: [Colors.deepPurpleAccent, Colors.purple],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Mindfulness Session"),
         backgroundColor: Colors.deepPurple,
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.deepPurpleAccent, Colors.purple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+        decoration: BoxDecoration(gradient: bgGradient),
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.self_improvement,
-                    size: 100, color: Colors.white70),
-                const SizedBox(height: 20),
-                Text(
-                  steps[step],
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold),
+                AnimatedContainer(
+                  duration: const Duration(seconds: 1),
+                  curve: Curves.easeInOut,
+                  height: 100 + (step * 5),
+                  width: 100 + (step * 5),
+                  child: const Icon(Icons.self_improvement,
+                      size: 100, color: Colors.white70),
                 ),
-                const SizedBox(height: 40),
-                ElevatedButton.icon(
-                  onPressed: startMindfulness,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text("Start Mindfulness"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.deepPurple,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
+                const SizedBox(height: 20),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 600),
+                  child: Text(
+                    steps[step],
+                    key: ValueKey(step),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
+                const SizedBox(height: 30),
+                LinearProgressIndicator(
+                  value: (step + 1) / steps.length,
+                  backgroundColor: Colors.white24,
+                  color: Colors.white,
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 40),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: startMindfulness,
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text("Start"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    ElevatedButton.icon(
+                      onPressed: resetMindfulness,
+                      icon: const Icon(Icons.restart_alt),
+                      label: const Text("Reset"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                      ),
+                    ),
+                  ],
+                )
               ],
             ),
           ),

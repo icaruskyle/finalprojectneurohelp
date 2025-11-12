@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ArticlesScreen extends StatefulWidget {
-  const ArticlesScreen({super.key});
+  final bool isDarkMode;
+  const ArticlesScreen({super.key, required this.isDarkMode});
 
   @override
   State<ArticlesScreen> createState() => _ArticlesScreenState();
@@ -38,7 +39,8 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
       'title': 'Self-Care Tips for Students',
       'description':
       'Learn how to balance school, work, and personal life while maintaining your mental health.',
-      'link': 'https://www.mentalhealth.org.uk/explore-mental-health/publications/student-guide',
+      'link':
+      'https://www.mentalhealth.org.uk/explore-mental-health/publications/student-guide',
       'category': 'Guides'
     },
     {
@@ -73,6 +75,14 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     },
   ];
 
+  final Map<String, Color> _categoryColors = {
+    'Events': Colors.teal,
+    'Self-Care': Colors.blue,
+    'Guides': Colors.orange,
+    'Awareness': Colors.pinkAccent,
+    'All': Colors.deepPurple
+  };
+
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -82,7 +92,8 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Apply search + category filters
+    final isDark = widget.isDarkMode;
+
     final filteredArticles = _articles.where((article) {
       final matchesCategory =
           _selectedCategory == 'All' || article['category'] == _selectedCategory;
@@ -102,16 +113,25 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
       ),
       body: Column(
         children: [
-          // 🔍 Search Bar
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                prefixIcon: Icon(Icons.search, color: isDark ? Colors.white : Colors.deepPurple),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {});
+                  },
+                )
+                    : null,
                 hintText: "Search articles or events...",
                 filled: true,
-                fillColor: Colors.deepPurple.shade50,
+                fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
@@ -120,81 +140,86 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
               onChanged: (_) => setState(() {}),
             ),
           ),
-
-          // 🎯 Category Filter Dropdown
+          // Category Dropdown
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: DropdownButtonFormField<String>(
               value: _selectedCategory,
               decoration: InputDecoration(
                 labelText: "Filter by Category",
-                prefixIcon:
-                const Icon(Icons.filter_list, color: Colors.deepPurple),
+                prefixIcon: Icon(Icons.filter_list, color: isDark ? Colors.white : Colors.deepPurple),
                 filled: true,
-                fillColor: Colors.deepPurple.shade50,
+                fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              items: const [
-                DropdownMenuItem(value: 'All', child: Text('All')),
-                DropdownMenuItem(value: 'Events', child: Text('Events')),
-                DropdownMenuItem(value: 'Self-Care', child: Text('Self-Care')),
-                DropdownMenuItem(value: 'Guides', child: Text('Guides')),
-                DropdownMenuItem(value: 'Awareness', child: Text('Awareness')),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value!;
-                });
-              },
+              items: _categoryColors.keys
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .toList(),
+              onChanged: (value) => setState(() => _selectedCategory = value!),
             ),
           ),
-
           const SizedBox(height: 10),
-
-          // 📰 Article List
+          // Article List
           Expanded(
             child: filteredArticles.isEmpty
-                ? const Center(
+                ? Center(
               child: Text(
                 "No articles found.",
-                style:
-                TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDark ? Colors.white70 : Colors.grey[700],
+                ),
               ),
             )
                 : ListView.builder(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: filteredArticles.length,
               itemBuilder: (context, index) {
                 final item = filteredArticles[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 5,
+                final catColor = _categoryColors[item['category']] ?? Colors.deepPurple;
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
                   margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [Colors.grey[850]!, Colors.grey[900]!]
+                          : [catColor.withOpacity(0.2), Colors.white],
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
                     title: Text(
                       item['title']!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
-                        color: Colors.deepPurple,
+                        color: isDark ? Colors.white : catColor,
                       ),
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
                         item['description']!,
-                        style: const TextStyle(fontSize: 15),
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: isDark ? Colors.white60 : Colors.black87,
+                        ),
                       ),
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.open_in_new,
-                          color: Colors.deepPurple),
+                      icon: Icon(Icons.open_in_new, color: catColor),
                       onPressed: () => _launchURL(item['link']!),
                     ),
                   ),

@@ -136,13 +136,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                 }),
                 _buildAnimatedCard(
-                    "Listen to Music", "assets/images/music.png", () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => MusicScreen(username: widget.username)),
-                  );
-                }),
+                  "Listen to Music",
+                  "assets/images/music.png",
+                      () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MusicScreen(isDarkMode: _isDarkMode),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -204,20 +208,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           _buildListCard(Icons.article, "Latest Articles",
               "Read about mental health and wellness.", () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const ArticlesScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ArticlesScreen(isDarkMode: _isDarkMode),
+                  ),
+                );
               }),
           _buildListCard(Icons.event, "Upcoming Events",
               "Check upcoming awareness activities.", () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const EventsScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EventsScreen(isDarkMode: _isDarkMode),
+                  ),
+                );
               }),
           _buildListCard(Icons.volunteer_activism, "Community Support",
               "Join discussions and support groups.", () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CommunitySupportScreen()));
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        CommunitySupportScreen(isDarkMode: _isDarkMode),
+                  ),
+                );
               }),
         ],
       ),
