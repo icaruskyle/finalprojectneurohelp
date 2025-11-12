@@ -6,7 +6,7 @@ import 'ai_service.dart';
 import 'package:intl/intl.dart';
 
 class HeneuroTab extends StatefulWidget {
-  final bool isDarkMode; // Controlled by Dashboard
+  final bool isDarkMode;
   const HeneuroTab({super.key, required this.isDarkMode});
 
   @override
@@ -20,8 +20,8 @@ class _HeneuroTabState extends State<HeneuroTab>
 
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final ai = AIService();
-
   final user = FirebaseAuth.instance.currentUser;
 
   bool isSidebarOpen = true;
@@ -37,7 +37,7 @@ class _HeneuroTabState extends State<HeneuroTab>
     _loadSessions();
   }
 
-  // ---------------- Session Management ----------------
+  // ---------------- Load Chat Sessions ----------------
   Future<void> _loadSessions() async {
     if (user == null) return;
 
@@ -49,25 +49,29 @@ class _HeneuroTabState extends State<HeneuroTab>
         .get();
 
     setState(() {
-      sessions = snapshot.docs
-          .map((doc) => {
-        'id': doc.id,
-        'name': doc['name'] ?? 'Session',
-        'created_at': doc['created_at'],
-      })
-          .toList();
+      sessions = snapshot.docs.map((doc) {
+        List<dynamic> msgs = [];
+        try {
+          msgs = json.decode(doc['messages'] ?? '[]');
+        } catch (_) {}
+        String lastMsg = msgs.isNotEmpty ? (msgs.last['text'] ?? '') : 'No messages yet';
+        return {
+          'id': doc.id,
+          'name': doc['name'] ?? 'Session',
+          'created_at': doc['created_at'],
+          'last_message': lastMsg,
+        };
+      }).toList();
     });
   }
 
+  // ---------------- Session Management ----------------
   Future<void> _createSessionIfNone() async {
-    if (currentSessionId == null) {
-      await createNewSession();
-    }
+    if (currentSessionId == null) await createNewSession();
   }
 
   Future<void> createNewSession() async {
     if (user == null) return;
-
     final now = DateTime.now();
     final newDoc = FirebaseFirestore.instance
         .collection('users')
@@ -101,12 +105,17 @@ class _HeneuroTabState extends State<HeneuroTab>
 
     if (doc.exists) {
       final data = doc.data()!;
+      try {
+        messages = List<Map<String, String>>.from(json.decode(data['messages'] ?? '[]'));
+      } catch (_) {
+        messages = [];
+      }
+
       setState(() {
         currentSessionId = sessionId;
-        messages =
-        List<Map<String, String>>.from(json.decode(data['messages'] ?? '[]'));
         isSidebarOpen = false;
       });
+      _scrollToBottom();
     }
   }
 
@@ -160,9 +169,15 @@ class _HeneuroTabState extends State<HeneuroTab>
       isSidebarOpen = false;
     });
     _controller.clear();
+    _scrollToBottom();
 
-    // ✅ Use the updated AIService method
-    final reply = await ai.predictMood(userInput);
+    String reply;
+    if (ai.detectSuicidalRisk(userInput)) {
+      reply =
+      "⚠️ It seems you may be at risk. Please consider reaching out for help immediately.";
+    } else {
+      reply = await ai.getAIResponse(userInput);
+    }
 
     setState(() {
       messages.add({
@@ -172,18 +187,42 @@ class _HeneuroTabState extends State<HeneuroTab>
       });
       _isLoading = false;
     });
+    _scrollToBottom();
 
-    final docRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .collection('chat_history')
-        .doc(currentSessionId);
-    await docRef.set({'messages': json.encode(messages)}, SetOptions(merge: true));
+    if (currentSessionId != null && user != null) {
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('chat_history')
+          .doc(currentSessionId);
+      await docRef.set({
+        'messages': json.encode(messages),
+        'updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    }
+
+    await _loadSessions(); // refresh sidebar with last messages
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   String formatTime(String isoTime) {
     final dt = DateTime.parse(isoTime).toLocal();
     return DateFormat('hh:mm a').format(dt);
+  }
+
+  Color _getAIBubbleColor(String text) {
+    return widget.isDarkMode ? Colors.grey[800]! : Colors.deepPurple.shade100;
   }
 
   @override
@@ -193,24 +232,24 @@ class _HeneuroTabState extends State<HeneuroTab>
     final bg = widget.isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
     final text = widget.isDarkMode ? Colors.white : Colors.black;
 
-    final filteredMessages = searchQuery.isEmpty
-        ? messages
-        : messages
-        .where((msg) =>
-        msg['text']!.toLowerCase().contains(searchQuery.toLowerCase()))
+    final filteredSessions = searchQuery.isEmpty
+        ? sessions
+        : sessions
+        .where((session) => session['name']
+        .toString()
+        .toLowerCase()
+        .contains(searchQuery.toLowerCase()))
         .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Chat with Heneuro 🤖"),
+        title: const Text("Chat with Henuero 🤖"),
         backgroundColor: Colors.deepPurple,
         centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(isSidebarOpen ? Icons.close : Icons.menu),
-            onPressed: () {
-              setState(() => isSidebarOpen = !isSidebarOpen);
-            },
+            onPressed: () => setState(() => isSidebarOpen = !isSidebarOpen),
           ),
           if (currentSessionId != null)
             IconButton(
@@ -223,23 +262,21 @@ class _HeneuroTabState extends State<HeneuroTab>
       backgroundColor: bg,
       body: Row(
         children: [
-          // ---------------- Sidebar ----------------
+          // Sidebar
           if (isSidebarOpen)
             Container(
-              width: 250,
+              width: 270,
               color: widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
               child: Column(
                 children: [
-                  // Top bar with + button
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     child: Row(
                       children: [
                         const Expanded(
                           child: Text(
                             'Chat Sessions',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                         ),
                         IconButton(
@@ -250,29 +287,29 @@ class _HeneuroTabState extends State<HeneuroTab>
                       ],
                     ),
                   ),
-                  // Search box
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: TextField(
                       controller: _searchController,
                       decoration: const InputDecoration(
-                          labelText: 'Search messages',
-                          border: OutlineInputBorder()),
+                          labelText: 'Search session', border: OutlineInputBorder()),
                       onChanged: (val) => setState(() => searchQuery = val),
                     ),
                   ),
-                  // List of sessions
                   Expanded(
                     child: ListView.builder(
-                      itemCount: sessions.length,
+                      itemCount: filteredSessions.length,
                       itemBuilder: (context, index) {
-                        final session = sessions[index];
+                        final session = filteredSessions[index];
                         final createdAt = DateTime.parse(
                             session['created_at'] ?? DateTime.now().toString());
                         final sessionId = session['id'];
                         final sessionName = session['name'];
+                        final lastMsg = session['last_message'] ?? '';
 
                         return ListTile(
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           title: Text(
                             sessionName,
                             style: TextStyle(
@@ -282,8 +319,20 @@ class _HeneuroTabState extends State<HeneuroTab>
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          subtitle: Text(
-                            DateFormat('MMM dd, yyyy – hh:mm a').format(createdAt),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lastMsg.length > 30
+                                    ? "${lastMsg.substring(0, 30)}..."
+                                    : lastMsg,
+                                style: TextStyle(fontSize: 12, color: text.withOpacity(0.7)),
+                              ),
+                              Text(
+                                DateFormat('MMM dd, yyyy – hh:mm a').format(createdAt),
+                                style: TextStyle(fontSize: 11, color: text.withOpacity(0.5)),
+                              ),
+                            ],
                           ),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_forever,
@@ -298,22 +347,27 @@ class _HeneuroTabState extends State<HeneuroTab>
                 ],
               ),
             ),
-          // ---------------- Chat Area ----------------
+
+          // Chat Panel
           Expanded(
             child: Column(
               children: [
                 Expanded(
                   child: ListView.builder(
-                    controller: ScrollController(),
+                    controller: _scrollController,
+                    reverse: true,
                     padding: const EdgeInsets.all(12),
-                    itemCount: filteredMessages.length,
+                    itemCount: messages.length + (_isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final msg = filteredMessages[index];
+                      if (_isLoading && index == 0) {
+                        return TypingIndicator(isDarkMode: widget.isDarkMode);
+                      }
+
+                      final msg = messages[messages.length - 1 - (_isLoading ? index - 1 : index)];
                       final isUser = msg["sender"] == "user";
 
                       return Align(
-                        alignment:
-                        isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           padding: const EdgeInsets.all(12),
@@ -323,9 +377,7 @@ class _HeneuroTabState extends State<HeneuroTab>
                           decoration: BoxDecoration(
                             color: isUser
                                 ? Colors.deepPurple
-                                : (widget.isDarkMode
-                                ? Colors.grey[800]
-                                : Colors.deepPurple.shade100),
+                                : _getAIBubbleColor(msg['text'] ?? ''),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(12),
                               topRight: const Radius.circular(12),
@@ -339,15 +391,11 @@ class _HeneuroTabState extends State<HeneuroTab>
                               Text(
                                 msg["text"] ?? "",
                                 style: TextStyle(
-                                  color: isUser ? Colors.white : text,
-                                  fontSize: 16,
-                                ),
+                                    color: isUser ? Colors.white : text, fontSize: 16),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                msg["time"] != null
-                                    ? formatTime(msg["time"]!)
-                                    : "",
+                                msg["time"] != null ? formatTime(msg["time"]!) : "",
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: isUser
@@ -361,6 +409,7 @@ class _HeneuroTabState extends State<HeneuroTab>
                     },
                   ),
                 ),
+
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Row(
@@ -369,8 +418,9 @@ class _HeneuroTabState extends State<HeneuroTab>
                         child: TextField(
                           controller: _controller,
                           style: TextStyle(color: text),
+                          onSubmitted: (_) => _sendMessage(),
                           decoration: InputDecoration(
-                            hintText: "Ask something...",
+                            hintText: "Ask Henuero something...",
                             hintStyle: TextStyle(color: text.withOpacity(0.6)),
                             filled: true,
                             fillColor: widget.isDarkMode
@@ -387,15 +437,13 @@ class _HeneuroTabState extends State<HeneuroTab>
                       ElevatedButton.icon(
                         onPressed: _isLoading ? null : _sendMessage,
                         icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                        label: const Text("Send",
-                            style: TextStyle(color: Colors.white)),
+                        label: const Text("Send", style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepPurple,
                           padding: const EdgeInsets.symmetric(
                               vertical: 14, horizontal: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ],
@@ -405,6 +453,80 @@ class _HeneuroTabState extends State<HeneuroTab>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------- Typing Indicator ----------------
+class TypingIndicator extends StatefulWidget {
+  final bool isDarkMode;
+  const TypingIndicator({super.key, required this.isDarkMode});
+
+  @override
+  State<TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<int> _dotAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+
+    _dotAnimation = StepTween(begin: 1, end: 3).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String getDots(int count) => '.' * count;
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbleColor =
+    widget.isDarkMode ? Colors.grey[800] : Colors.deepPurple.shade100;
+    final textColor = widget.isDarkMode ? Colors.white : Colors.black87;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: AnimatedBuilder(
+        animation: _dotAnimation,
+        builder: (context, child) {
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.all(12),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            decoration: BoxDecoration(
+              color: bubbleColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+                bottomLeft: Radius.circular(0),
+              ),
+            ),
+            child: Text(
+              'Henuero is typing${getDots(_dotAnimation.value)}',
+              style: TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: textColor,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

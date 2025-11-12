@@ -1,16 +1,13 @@
-// daily_journal_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:math';
 import 'ai_service.dart';
 import 'mood_updates_screen.dart';
 import 'emergency_contacts_screen.dart';
 
 class DailyJournalScreen extends StatefulWidget {
-  final String username;
-
-  const DailyJournalScreen({super.key, required this.username});
+  const DailyJournalScreen({super.key});
 
   @override
   State<DailyJournalScreen> createState() => _DailyJournalScreenState();
@@ -19,6 +16,7 @@ class DailyJournalScreen extends StatefulWidget {
 class _DailyJournalScreenState extends State<DailyJournalScreen> {
   final TextEditingController _controller = TextEditingController();
   final AIService ai = AIService();
+  final User? user = FirebaseAuth.instance.currentUser;
 
   @override
   void dispose() {
@@ -32,16 +30,18 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     if (text.isEmpty) return;
 
     _controller.clear();
+    if (user == null) return;
 
     try {
+      final uid = user!.uid;
       final journalRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.username)
+          .doc(uid)
           .collection('daily_journal');
 
       final moodHistoryRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.username)
+          .doc(uid)
           .collection('mood_history');
 
       // Detect suicidal risk
@@ -63,7 +63,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       await moodHistoryRef.add({
         'mood': mood,
         'date': date,
-        'journalId': journalDocRef.id, // Link mood to journal
+        'journalId': journalDocRef.id,
       });
 
       // Show alert if suicidal content detected
@@ -91,15 +91,18 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
 
   // ---------------- Delete Journal Entry & Linked Mood ----------------
   Future<void> _deleteEntry(String journalId) async {
+    if (user == null) return;
+
     try {
+      final uid = user!.uid;
       final journalRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.username)
+          .doc(uid)
           .collection('daily_journal');
 
       final moodHistoryRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.username)
+          .doc(uid)
           .collection('mood_history');
 
       // Delete journal entry
@@ -159,8 +162,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
                 Navigator.of(context).pop();
                 _callNumber(defaultHelplineNumber);
               },
-              child: const Text("Call Helpline",
-                  style: TextStyle(color: Colors.red)),
+              child: const Text("Call Helpline", style: TextStyle(color: Colors.red)),
             ),
             TextButton(
               onPressed: () {
@@ -199,8 +201,8 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
   }
 
   Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
     try {
-      final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
@@ -210,7 +212,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
           );
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Could not open the link.")),
@@ -262,10 +264,20 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    if (user == null) {
+      return Scaffold(
+        body: Center(
+          child: Text("No user logged in", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        ),
+      );
+    }
+
+    final uid = user!.uid;
+
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
-        title: Text("${widget.username}'s Daily Journal"),
+        title: const Text("Daily Journal"),
         backgroundColor: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
         actions: [
           IconButton(
@@ -275,7 +287,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MoodUpdatesScreen(username: widget.username),
+                  builder: (_) => MoodUpdatesScreen(uid: uid),
                 ),
               );
             },
@@ -313,7 +325,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(widget.username)
+                    .doc(uid)
                     .collection('daily_journal')
                     .orderBy('date', descending: true)
                     .snapshots(),

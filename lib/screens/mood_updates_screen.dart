@@ -2,59 +2,108 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MoodUpdatesScreen extends StatefulWidget {
-  final String username;
+final String uid; // use uid consistently
 
-  const MoodUpdatesScreen({super.key, required this.username});
+const MoodUpdatesScreen({super.key, required this.uid});
 
-  @override
-  State<MoodUpdatesScreen> createState() => _MoodUpdatesScreenState();
+@override
+State<MoodUpdatesScreen> createState() => _MoodUpdatesScreenState();
 }
 
 class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
   Map<String, int> _moodCount = {};
+  Map<String, int> _positiveCount = {};
+  Map<String, int> _negativeCount = {};
+  Map<String, int> _neutralCount = {};
+  Map<String, List<String>> _dailyMoods = {};
+  Map<String, double> _dailyMoodAverage = {};
+
+  final User? user = FirebaseAuth.instance.currentUser;
+
+  final List<String> positiveMoods = [
+    "😊 Happy", "😇 Grateful", "😌 Content", "😎 Confident", "🥳 Excited",
+    "😚 Loved", "🤗 Hopeful", "🤩 Inspired", "😋 Playful", "🤠 Cheerful",
+    "🧘 Calm", "🙂 Neutral",
+  ];
+
+  final List<String> negativeMoods = [
+    "😢 Sad", "💔 Heartbroken", "😞 Disappointed", "😔 Lonely", "😩 Overwhelmed",
+    "😕 Confused", "😟 Anxious", "😰 Stressed", "😤 Frustrated", "😠 Irritated",
+    "😡 Angry", "😬 Nervous", "😳 Embarrassed", "😴 Tired", "😫 Exhausted",
+    "😩 Hopeless", "😶 Empty", "😑 Bored", "🤒 Unwell", "🤯 Burned Out", "⚠️ Suicidal/Warning",
+  ];
+
+  final List<String> neutralMoods = [
+    "🤔 Reflective", "😌 Thoughtful", "😮 Surprised", "😶 Indifferent", "😐 Blank",
+    "🫤 Uncertain", "🤫 Quiet", "😅 Awkward", "🤨 Skeptical", "🤓 Focused", "🤭 Amused",
+  ];
 
   Color _getMoodColor(String mood) {
-    switch (mood.toLowerCase()) {
-      case "😊 happy":
-        return Colors.yellow.shade700;
-      case "😢 sad":
-        return Colors.blue.shade400;
-      case "😡 angry":
-        return Colors.red.shade400;
-      case "🧘 calm":
-        return Colors.green.shade400;
-      case "😟 anxious":
-        return Colors.orange.shade400;
-      default:
-        return Colors.purple.shade300;
-    }
+    if (positiveMoods.contains(mood)) return Colors.yellow.shade700;
+    if (negativeMoods.contains(mood)) return Colors.red.shade400;
+    if (neutralMoods.contains(mood)) return Colors.blue.shade400;
+    return Colors.purple.shade300;
+  }
+
+  int _getMoodValue(String mood) {
+    if (positiveMoods.contains(mood)) return 1;
+    if (negativeMoods.contains(mood)) return -1;
+    return 0;
   }
 
   void _updateMoodStats(List<QueryDocumentSnapshot> docs) {
     _moodCount.clear();
+    _positiveCount.clear();
+    _negativeCount.clear();
+    _neutralCount.clear();
+    _dailyMoods.clear();
+    _dailyMoodAverage.clear();
+
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       final mood = data['mood'] ?? 'Unknown';
+      final date = data['date'] != null
+          ? DateFormat('yyyy-MM-dd').format(DateTime.parse(data['date']).toLocal())
+          : 'Unknown';
+
       _moodCount[mood] = (_moodCount[mood] ?? 0) + 1;
+
+      if (positiveMoods.contains(mood)) {
+        _positiveCount[mood] = (_positiveCount[mood] ?? 0) + 1;
+      } else if (negativeMoods.contains(mood)) {
+        _negativeCount[mood] = (_negativeCount[mood] ?? 0) + 1;
+      } else if (neutralMoods.contains(mood)) {
+        _neutralCount[mood] = (_neutralCount[mood] ?? 0) + 1;
+      }
+
+      if (!_dailyMoods.containsKey(date)) _dailyMoods[date] = [];
+      _dailyMoods[date]!.add(mood);
     }
+
+    _dailyMoods.forEach((date, moods) {
+      double avg = moods.map((m) => _getMoodValue(m)).reduce((a, b) => a + b) / moods.length;
+      _dailyMoodAverage[date] = avg;
+    });
   }
 
-  List<PieChartSectionData> _buildChartSections() {
-    final total = _moodCount.values.fold(0, (a, b) => a + b);
+  List<PieChartSectionData> _buildChartSections(Map<String, int> dataMap) {
+    final total = dataMap.values.fold(0, (a, b) => a + b);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return _moodCount.entries.map((entry) {
+    return dataMap.entries.map((entry) {
       final percentage = total == 0 ? 0.0 : (entry.value / total) * 100;
       final color = _getMoodColor(entry.key);
       return PieChartSectionData(
         color: color,
         value: percentage,
         title: '${percentage.toStringAsFixed(1)}%',
-        radius: 60,
+        radius: 50,
         titleStyle: TextStyle(
-          fontSize: 14,
+          fontSize: 12,
           color: isDark ? Colors.white : Colors.black,
           fontWeight: FontWeight.bold,
         ),
@@ -62,16 +111,63 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
     }).toList();
   }
 
-  // ---------------- Delete Mood & Linked Journal ----------------
+  List<LineChartBarData> _buildDailyMoodLines() {
+    final sortedDates = _dailyMoods.keys.toList()..sort();
+    List<LineChartBarData> lines = [];
+
+    for (var i = 0; i < sortedDates.length; i++) {
+      final moods = _dailyMoods[sortedDates[i]]!;
+      for (var j = 0; j < moods.length; j++) {
+        lines.add(LineChartBarData(
+          spots: [FlSpot(i.toDouble(), j.toDouble())],
+          isCurved: false,
+          color: _getMoodColor(moods[j]),
+          barWidth: 4,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, percent, barData, index) {
+              return FlDotCirclePainter(
+                radius: 6,
+                color: _getMoodColor(moods[j]),
+                strokeWidth: 2,
+                strokeColor: Colors.white,
+              );
+            },
+          ),
+          belowBarData: BarAreaData(show: false),
+        ));
+      }
+    }
+
+    List<FlSpot> trendSpots = [];
+    for (var i = 0; i < sortedDates.length; i++) {
+      trendSpots.add(FlSpot(i.toDouble(), _dailyMoodAverage[sortedDates[i]]!));
+    }
+
+    lines.add(LineChartBarData(
+      spots: trendSpots,
+      isCurved: true,
+      barWidth: 3,
+      color: Colors.greenAccent,
+      dotData: FlDotData(show: false),
+      belowBarData: BarAreaData(show: false),
+    ));
+
+    return lines;
+  }
+
   Future<void> _deleteMoodEntry(String moodId, String? journalId) async {
+    if (user == null) return;
+    final uid = user!.uid;
+
     final moodRef = FirebaseFirestore.instance
         .collection('users')
-        .doc(widget.username)
+        .doc(uid)
         .collection('mood_history');
 
     final journalRef = FirebaseFirestore.instance
         .collection('users')
-        .doc(widget.username)
+        .doc(uid)
         .collection('daily_journal');
 
     showDialog(
@@ -88,20 +184,14 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
           TextButton(
             onPressed: () async {
               try {
-                // Delete mood entry
                 await moodRef.doc(moodId).delete();
-
-                // Delete linked journal entry if exists
                 if (journalId != null && journalId.isNotEmpty) {
                   await journalRef.doc(journalId).delete();
                 }
-
                 Navigator.pop(context);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                        Text("Mood entry and linked journal deleted.")),
+                    const SnackBar(content: Text("Mood entry and linked journal deleted.")),
                   );
                 }
               } catch (e) {
@@ -124,22 +214,33 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    if (user == null) {
+      return Scaffold(
+        body: Center(
+          child: Text("No user logged in", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        ),
+      );
+    }
+
+    final uid = user!.uid;
+
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
-        title: Text("${widget.username}'s Mood Tracker"),
+        title: const Text("Mood Tracker"),
         backgroundColor: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
-            .doc(widget.username)
+            .doc(uid)
             .collection('mood_history')
             .orderBy('date', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
 
           final docs = snapshot.data!.docs;
           _updateMoodStats(docs);
@@ -150,76 +251,20 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Mood Chart
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          const Text("Mood Overview",
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 180,
-                            child: PieChart(
-                              PieChartData(
-                                sections: _buildChartSections(),
-                                borderData: FlBorderData(show: false),
-                                sectionsSpace: 2,
-                                centerSpaceRadius: 40,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text("Total entries: ${docs.length}",
-                              style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade800)),
-                        ],
-                      ),
-                    ),
-                  ),
-
+                  _buildCategoryChartCard("Overall Mood Overview", _moodCount, isDark),
                   const SizedBox(height: 16),
-
-                  // Mood Percentages
-                  if (_moodCount.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _moodCount.entries.map((entry) {
-                        final percentage = (entry.value / docs.length) * 100;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    margin: const EdgeInsets.only(right: 8),
-                                    decoration: BoxDecoration(
-                                      color: _getMoodColor(entry.key),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  ),
-                                  Text(entry.key,
-                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                                ],
-                              ),
-                              Text("${percentage.toStringAsFixed(1)}%",
-                                  style: TextStyle(color: isDark ? Colors.purple[200] : Colors.deepPurple)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
+                  if (_positiveCount.isNotEmpty)
+                    _buildCategoryChartCard("Positive Moods", _positiveCount, isDark),
+                  const SizedBox(height: 16),
+                  if (_negativeCount.isNotEmpty)
+                    _buildCategoryChartCard("Negative Moods", _negativeCount, isDark),
+                  const SizedBox(height: 16),
+                  if (_neutralCount.isNotEmpty)
+                    _buildCategoryChartCard("Neutral / Reflective Moods", _neutralCount, isDark),
+                  const SizedBox(height: 16),
+                  if (_dailyMoods.isNotEmpty)
+                    _buildDailyMoodChart(isDark),
                   const SizedBox(height: 20),
-
-                  // Mood History List
                   const Text("Mood History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ListView.builder(
@@ -264,6 +309,157 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCategoryChartCard(String title, Map<String, int> data, bool isDark) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(title,
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 160,
+              child: PieChart(
+                PieChartData(
+                  sections: _buildChartSections(data),
+                  borderData: FlBorderData(show: false),
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 30,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildMoodLegend(isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoodLegend(bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _legendItem("Positive", Colors.yellow.shade700, isDark),
+        _legendItem("Neutral", Colors.blue.shade400, isDark),
+        _legendItem("Negative", Colors.red.shade400, isDark),
+      ],
+    );
+  }
+
+  Widget _legendItem(String label, Color color, bool isDark) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDailyMoodChart(bool isDark) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text("Daily Mood Progress",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 240,
+              child: LineChart(
+                LineChartData(
+                  lineBarsData: _buildDailyMoodLines(),
+                  minY: -1.5,
+                  maxY: 1.5,
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final color = isDark ? Colors.white70 : Colors.black87;
+                          if (value == -1) return Text("Neg", style: TextStyle(color: color));
+                          if (value == 0) return Text("Neu", style: TextStyle(color: color));
+                          if (value == 1) return Text("Pos", style: TextStyle(color: color));
+                          return Text('', style: TextStyle(color: color));
+                        },
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final color = isDark ? Colors.white70 : Colors.black87;
+                          final index = value.toInt();
+                          if (index >= 0 && index < _dailyMoods.keys.length) {
+                            return Text(
+                              _dailyMoods.keys.toList()[index].substring(5),
+                              style: TextStyle(color: color, fontSize: 10),
+                            );
+                          }
+                          return Text('', style: TextStyle(color: color));
+                        },
+                      ),
+                    ),
+                  ),
+                  gridData: FlGridData(show: true),
+                  borderData: FlBorderData(show: false),
+                  lineTouchData: LineTouchData(
+                    touchTooltipData: LineTouchTooltipData(
+                      tooltipBorderRadius: BorderRadius.circular(8),
+                      getTooltipColor: (touchedSpots) => isDark ? Colors.grey.shade900 : Colors.black87,
+                      getTooltipItems: (spots) {
+                        return spots.map((spot) {
+                          final date = _dailyMoods.keys.toList()[spot.x.toInt()];
+                          if (spot.y == _dailyMoodAverage[date]) {
+                            return LineTooltipItem(
+                              "Average Mood\n$date",
+                              TextStyle(color: Colors.greenAccent),
+                            );
+                          }
+                          final mood = _dailyMoods[date]![spot.y.toInt()];
+                          return LineTooltipItem(
+                            "$mood\n$date",
+                            TextStyle(color: isDark ? Colors.white : Colors.black),
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

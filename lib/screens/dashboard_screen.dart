@@ -13,7 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'ai_service.dart';
 import 'heneuro_tab.dart'; // ✅ import for AI chat tab
 
-
 class DashboardScreen extends StatefulWidget {
   final String username;
   const DashboardScreen({super.key, required this.username});
@@ -119,8 +118,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              DailyJournalScreen(username: widget.username),
+                          builder: (_) => DailyJournalScreen(), // ✅ fixed
                         ),
                       );
                     }),
@@ -133,7 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          MoodUpdatesScreen(username: widget.username),
+                          MoodUpdatesScreen(uid: widget.username), // ✅ fixed
                     ),
                   );
                 }),
@@ -216,8 +214,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }),
           _buildListCard(Icons.volunteer_activism, "Community Support",
               "Join discussions and support groups.", () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const CommunitySupportScreen()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CommunitySupportScreen()));
               }),
         ],
       ),
@@ -269,8 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) =>
-                          DailyJournalScreen(username: widget.username)),
+                      builder: (_) => DailyJournalScreen()), // ✅ fixed
                 );
               }),
           _buildFeatureCard("Mood Tracker", Icons.mood,
@@ -279,7 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (_) =>
-                          MoodUpdatesScreen(username: widget.username)),
+                          MoodUpdatesScreen(uid: widget.username)), // ✅ fixed
                 );
               }),
           _buildFeatureCard("Self-Help Resources", Icons.self_improvement,
