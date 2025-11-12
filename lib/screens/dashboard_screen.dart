@@ -142,7 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => MusicScreen(isDarkMode: _isDarkMode),
+                        builder: (_) => MusicScreen(username: widget.username),
                       ),
                     );
                   },

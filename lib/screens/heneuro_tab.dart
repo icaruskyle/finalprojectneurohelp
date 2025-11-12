@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'ai_service.dart';
 import 'package:intl/intl.dart';
 
@@ -54,7 +55,8 @@ class _HeneuroTabState extends State<HeneuroTab>
         try {
           msgs = json.decode(doc['messages'] ?? '[]');
         } catch (_) {}
-        String lastMsg = msgs.isNotEmpty ? (msgs.last['text'] ?? '') : 'No messages yet';
+        String lastMsg =
+        msgs.isNotEmpty ? (msgs.last['text'] ?? '') : 'No messages yet';
         return {
           'id': doc.id,
           'name': doc['name'] ?? 'Session',
@@ -82,7 +84,7 @@ class _HeneuroTabState extends State<HeneuroTab>
     await newDoc.set({
       'messages': json.encode([]),
       'created_at': now.toIso8601String(),
-      'name': 'New Session',
+      'name': 'Session',
     });
 
     await _loadSessions();
@@ -106,7 +108,8 @@ class _HeneuroTabState extends State<HeneuroTab>
     if (doc.exists) {
       final data = doc.data()!;
       try {
-        messages = List<Map<String, String>>.from(json.decode(data['messages'] ?? '[]'));
+        messages =
+        List<Map<String, String>>.from(json.decode(data['messages'] ?? '[]'));
       } catch (_) {
         messages = [];
       }
@@ -115,7 +118,6 @@ class _HeneuroTabState extends State<HeneuroTab>
         currentSessionId = sessionId;
         isSidebarOpen = false;
       });
-      _scrollToBottom();
     }
   }
 
@@ -169,14 +171,23 @@ class _HeneuroTabState extends State<HeneuroTab>
       isSidebarOpen = false;
     });
     _controller.clear();
-    _scrollToBottom();
 
-    String reply;
-    if (ai.detectSuicidalRisk(userInput)) {
+    String reply = '';
+    try {
+      if (ai.detectSuicidalRisk(userInput)) {
+        reply =
+        "⚠️ It seems you may be at risk. Please consider reaching out for help immediately.";
+      } else {
+        reply = await ai
+            .getAIResponse(userInput)
+            .timeout(Duration(seconds: 10), onTimeout: () {
+          return "⚠️ Henuero took too long to respond. Please try again later.";
+        });
+      }
+    } catch (e) {
       reply =
-      "⚠️ It seems you may be at risk. Please consider reaching out for help immediately.";
-    } else {
-      reply = await ai.getAIResponse(userInput);
+      "⚠️ Henuero is currently unavailable. Please try again later."; // handles 503
+      print("AI Error: $e");
     }
 
     setState(() {
@@ -187,7 +198,6 @@ class _HeneuroTabState extends State<HeneuroTab>
       });
       _isLoading = false;
     });
-    _scrollToBottom();
 
     if (currentSessionId != null && user != null) {
       final docRef = FirebaseFirestore.instance
@@ -201,19 +211,7 @@ class _HeneuroTabState extends State<HeneuroTab>
       }, SetOptions(merge: true));
     }
 
-    await _loadSessions(); // refresh sidebar with last messages
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    await _loadSessions();
   }
 
   String formatTime(String isoTime) {
@@ -266,22 +264,25 @@ class _HeneuroTabState extends State<HeneuroTab>
           if (isSidebarOpen)
             Container(
               width: 270,
-              color: widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
+              color:
+              widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     child: Row(
                       children: [
                         const Expanded(
                           child: Text(
                             'Chat Sessions',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.add, color: Colors.deepPurple),
-                          tooltip: "New Session",
+                          tooltip: "Session",
                           onPressed: createNewSession,
                         ),
                       ],
@@ -308,8 +309,8 @@ class _HeneuroTabState extends State<HeneuroTab>
                         final lastMsg = session['last_message'] ?? '';
 
                         return ListTile(
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           title: Text(
                             sessionName,
                             style: TextStyle(
@@ -326,11 +327,14 @@ class _HeneuroTabState extends State<HeneuroTab>
                                 lastMsg.length > 30
                                     ? "${lastMsg.substring(0, 30)}..."
                                     : lastMsg,
-                                style: TextStyle(fontSize: 12, color: text.withOpacity(0.7)),
+                                style: TextStyle(
+                                    fontSize: 12, color: text.withOpacity(0.7)),
                               ),
                               Text(
-                                DateFormat('MMM dd, yyyy – hh:mm a').format(createdAt),
-                                style: TextStyle(fontSize: 11, color: text.withOpacity(0.5)),
+                                DateFormat('MMM dd, yyyy – hh:mm a')
+                                    .format(createdAt),
+                                style: TextStyle(
+                                    fontSize: 11, color: text.withOpacity(0.5)),
                               ),
                             ],
                           ),
@@ -363,11 +367,14 @@ class _HeneuroTabState extends State<HeneuroTab>
                         return TypingIndicator(isDarkMode: widget.isDarkMode);
                       }
 
-                      final msg = messages[messages.length - 1 - (_isLoading ? index - 1 : index)];
+                      final msg = messages[messages.length -
+                          1 -
+                          (_isLoading ? index - 1 : index)];
                       final isUser = msg["sender"] == "user";
 
                       return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment:
+                        isUser ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           padding: const EdgeInsets.all(12),
@@ -391,7 +398,8 @@ class _HeneuroTabState extends State<HeneuroTab>
                               Text(
                                 msg["text"] ?? "",
                                 style: TextStyle(
-                                    color: isUser ? Colors.white : text, fontSize: 16),
+                                    color: isUser ? Colors.white : text,
+                                    fontSize: 16),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -437,7 +445,8 @@ class _HeneuroTabState extends State<HeneuroTab>
                       ElevatedButton.icon(
                         onPressed: _isLoading ? null : _sendMessage,
                         icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                        label: const Text("Send", style: TextStyle(color: Colors.white)),
+                        label: const Text("Send",
+                            style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepPurple,
                           padding: const EdgeInsets.symmetric(
