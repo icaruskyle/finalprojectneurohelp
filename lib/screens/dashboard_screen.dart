@@ -10,7 +10,8 @@ import 'community_support_screen.dart';
 import 'profile_tab.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'ai_service.dart';
+import 'heneuro_tab.dart'; // ✅ import for AI chat tab
 
 
 class DashboardScreen extends StatefulWidget {
@@ -40,7 +41,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _userAvatar = prefs.getString('selectedAvatar');
     });
   }
-
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -73,9 +73,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               GestureDetector(
                 onTap: () async {
-                  // Go to Profile tab by changing bottom nav index instead of creating new ProfileTab
                   setState(() {
-                    _selectedIndex = 4; // assuming index 4 is for Profile
+                    _selectedIndex = 4; // Go to Profile tab
                   });
                 },
                 child: CircleAvatar(
@@ -125,10 +124,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       );
                     }),
-                _buildAnimatedCard("Chat with Heneuro", "assets/images/chat.png",
-                        () {
-                      _onItemTapped(2);
-                    }),
+                _buildAnimatedCard(
+                    "Chat with Heneuro", "assets/images/chat.png", () {
+                  _onItemTapped(2); // open AI tab
+                }),
                 _buildAnimatedCard("Mood Updates", "assets/images/mood.png", () {
                   Navigator.push(
                     context,
@@ -143,8 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) =>
-                            MusicScreen(username: widget.username)),
+                        builder: (_) => MusicScreen(username: widget.username)),
                   );
                 }),
               ],
@@ -252,19 +250,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------- HENEURO TAB ----------
-  Widget _buildHeneuro() {
-    return Container(
-      color: background,
-      alignment: Alignment.center,
-      child: Text(
-        "🤖 Chat with Heneuro (Coming Soon)",
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 20, color: textPrimary),
-      ),
-    );
-  }
-
   // ---------- OTHERS TAB ----------
   Widget _buildJournalMood() {
     return Container(
@@ -299,8 +284,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }),
           _buildFeatureCard("Self-Help Resources", Icons.self_improvement,
               "Access helpful guides, tips, and self-care materials.", () {
-                Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => const SelfHelpScreen()));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const SelfHelpScreen()));
               }),
           _buildFeatureCard("Emergency Contacts", Icons.contacts,
               "Quickly reach your emergency support contacts.", () {
@@ -322,8 +307,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ListTile(
         leading: Icon(icon, size: 35, color: accent),
         title: Text(title,
-            style:
-            TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle, style: TextStyle(color: textSecondary)),
         trailing: Icon(Icons.arrow_forward_ios,
             size: 18, color: accent.withOpacity(0.8)),
@@ -338,7 +322,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pages = [
       _buildHome(),
       _buildExplore(),
-      _buildHeneuro(),
+      HeneuroTab(isDarkMode: _isDarkMode), // ✅ new AI tab
       _buildJournalMood(),
       ProfileTab(
         username: widget.username,
@@ -402,8 +386,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
             BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Explore"),
-            BottomNavigationBarItem(icon: Icon(Icons.psychology), label: "Heneuro"),
-            BottomNavigationBarItem(icon: Icon(Icons.note_alt), label: "Others"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.psychology), label: "Heneuro"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.note_alt), label: "Others"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
           ],
         ),
