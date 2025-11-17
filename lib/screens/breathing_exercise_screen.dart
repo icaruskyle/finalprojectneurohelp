@@ -24,7 +24,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   final Random random = Random();
   final List<Offset> _particles = [];
 
-  int sessionCount = 0; // <-- number of sessions completed
+  int sessionCount = 0;
 
   @override
   void initState() {
@@ -38,19 +38,20 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
     AnimationController(vsync: this, duration: const Duration(seconds: 10))
       ..repeat();
 
-    _fetchSessionCount(); // fetch user's session count from Firestore
+    _fetchSessionCount();
   }
 
   Future<void> _fetchSessionCount() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final uid = user.uid;
-      final query = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
           .collection('breathing_sessions')
-          .where('uid', isEqualTo: uid)
           .get();
       setState(() {
-        sessionCount = query.docs.length;
+        sessionCount = snapshot.docs.length;
       });
     }
   }
@@ -91,7 +92,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
           instruction = "Great job! 💜 Session completed.";
           circleSize = 150;
           circleColor = Colors.purpleAccent.withOpacity(0.7);
-          sessionCount++; // increment locally
+          sessionCount++;
         });
 
         _saveSessionToFirebase(
@@ -114,8 +115,12 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final uid = user.uid;
-      await FirebaseFirestore.instance.collection('breathing_sessions').add({
-        'uid': uid,
+      // Save session in a subcollection under the user's document
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('breathing_sessions')
+          .add({
         'timestamp': DateTime.now(),
         'duration': duration,
       });
@@ -167,7 +172,6 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Session counter
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 8),
@@ -277,8 +281,7 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color =
-      (isDark ? Colors.purpleAccent : Colors.white70).withOpacity(0.3)
+      ..color = (isDark ? Colors.purpleAccent : Colors.white70).withOpacity(0.3)
       ..style = PaintingStyle.fill;
 
     for (var p in particles) {

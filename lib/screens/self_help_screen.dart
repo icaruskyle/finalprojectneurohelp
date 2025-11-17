@@ -1,6 +1,8 @@
 // self_help_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// Import your screens
 import 'breathing_exercise_screen.dart';
 import 'mindfulness_screen.dart';
 import 'journaling_screen.dart';
@@ -37,7 +39,7 @@ class SelfHelpScreen extends StatelessWidget {
         "title": "Gratitude List",
         "desc": "Reflect on things that make you thankful today.",
         "icon": Icons.favorite,
-        "route": GratitudeScreen(uid: uid), // pass uid here
+        "route": GratitudeScreen(), // pass uid here
       },
     ];
 

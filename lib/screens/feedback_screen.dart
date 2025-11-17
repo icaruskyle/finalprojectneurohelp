@@ -20,6 +20,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final user = _auth.currentUser;
     final feedbackText = _feedbackController.text.trim();
 
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ You must be logged in to submit feedback.")),
+      );
+      return;
+    }
+
     if (feedbackText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("⚠️ Please enter your feedback.")),
@@ -30,8 +37,12 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await _firestore.collection('feedback').add({
-        'uid': user?.uid ?? 'anonymous',
+      // Store feedback under users/{uid}/feedback
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('feedback')
+          .add({
         'feedback': feedbackText,
         'timestamp': FieldValue.serverTimestamp(),
       });

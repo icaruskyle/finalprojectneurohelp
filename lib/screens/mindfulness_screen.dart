@@ -49,12 +49,13 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final uid = user.uid;
-      final query = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
           .collection('mindfulness_sessions')
-          .where('uid', isEqualTo: uid)
           .get();
       setState(() {
-        sessionCount = query.docs.length;
+        sessionCount = snapshot.docs.length;
       });
     }
   }
@@ -85,8 +86,11 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final uid = user.uid;
-      await FirebaseFirestore.instance.collection('mindfulness_sessions').add({
-        'uid': uid,
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('mindfulness_sessions')
+          .add({
         'timestamp': DateTime.now(),
         'duration': duration,
       });

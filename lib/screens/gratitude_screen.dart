@@ -7,8 +7,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class GratitudeScreen extends StatefulWidget {
-  final String uid; // User ID for Firestore
-  const GratitudeScreen({super.key, required this.uid});
+  const GratitudeScreen({super.key});
 
   @override
   State<GratitudeScreen> createState() => _GratitudeScreenState();
@@ -21,12 +20,17 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   FlutterLocalNotificationsPlugin();
 
   List<String> gratitudeList = [];
+  late String uid;
 
   @override
   void initState() {
     super.initState();
-    _initNotification();
-    _loadGratitudeList();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      uid = user.uid;
+      _loadGratitudeList();
+      _initNotification();
+    }
   }
 
   // ---------- Initialize Notifications ----------
@@ -48,7 +52,7 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   void _scheduleDailyReminder() async {
     final now = tz.TZDateTime.now(tz.local);
     final scheduledTime =
-    tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0); // 8 PM
+    tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
       0,
@@ -77,7 +81,7 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   void _loadGratitudeList() async {
     final snapshot = await _firestore
         .collection('users')
-        .doc(widget.uid)
+        .doc(uid)
         .collection('gratitude')
         .orderBy('timestamp', descending: true)
         .get();
@@ -97,7 +101,7 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
 
     await _firestore
         .collection('users')
-        .doc(widget.uid)
+        .doc(uid)
         .collection('gratitude')
         .add({'text': text, 'timestamp': FieldValue.serverTimestamp()});
 
@@ -110,7 +114,7 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   void deleteGratitude(int index) async {
     final query = await _firestore
         .collection('users')
-        .doc(widget.uid)
+        .doc(uid)
         .collection('gratitude')
         .where('text', isEqualTo: gratitudeList[index])
         .limit(1)
