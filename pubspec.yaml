@@ -28,6 +28,7 @@ dependencies:
   firebase_storage: ^13.0.4
   flutter_ai_toolkit: ^0.10.0
   google_generative_ai: ^0.4.7
+  audioplayers: 6.5.1
 
 
 
@@ -45,6 +46,7 @@ flutter:
   assets:
     - assets/images/
     - assets/avatars/
+
 
 
 flutter_launcher_icons:

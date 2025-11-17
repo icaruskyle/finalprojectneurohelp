@@ -6,12 +6,12 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class MoodUpdatesScreen extends StatefulWidget {
-final String uid; // use uid consistently
+  final String uid; // use uid consistently
 
-const MoodUpdatesScreen({super.key, required this.uid});
+  const MoodUpdatesScreen({super.key, required this.uid});
 
-@override
-State<MoodUpdatesScreen> createState() => _MoodUpdatesScreenState();
+  @override
+  State<MoodUpdatesScreen> createState() => _MoodUpdatesScreenState();
 }
 
 class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
@@ -113,47 +113,22 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
 
   List<LineChartBarData> _buildDailyMoodLines() {
     final sortedDates = _dailyMoods.keys.toList()..sort();
-    List<LineChartBarData> lines = [];
-
-    for (var i = 0; i < sortedDates.length; i++) {
-      final moods = _dailyMoods[sortedDates[i]]!;
-      for (var j = 0; j < moods.length; j++) {
-        lines.add(LineChartBarData(
-          spots: [FlSpot(i.toDouble(), j.toDouble())],
-          isCurved: false,
-          color: _getMoodColor(moods[j]),
-          barWidth: 4,
-          dotData: FlDotData(
-            show: true,
-            getDotPainter: (spot, percent, barData, index) {
-              return FlDotCirclePainter(
-                radius: 6,
-                color: _getMoodColor(moods[j]),
-                strokeWidth: 2,
-                strokeColor: Colors.white,
-              );
-            },
-          ),
-          belowBarData: BarAreaData(show: false),
-        ));
-      }
-    }
-
     List<FlSpot> trendSpots = [];
+
     for (var i = 0; i < sortedDates.length; i++) {
       trendSpots.add(FlSpot(i.toDouble(), _dailyMoodAverage[sortedDates[i]]!));
     }
 
-    lines.add(LineChartBarData(
-      spots: trendSpots,
-      isCurved: true,
-      barWidth: 3,
-      color: Colors.greenAccent,
-      dotData: FlDotData(show: false),
-      belowBarData: BarAreaData(show: false),
-    ));
-
-    return lines;
+    return [
+      LineChartBarData(
+        spots: trendSpots,
+        isCurved: true,
+        barWidth: 3,
+        color: Colors.greenAccent,
+        dotData: FlDotData(show: true), // only show dots on trend line
+        belowBarData: BarAreaData(show: false),
+      )
+    ];
   }
 
   Future<void> _deleteMoodEntry(String moodId, String? journalId) async {
@@ -440,16 +415,9 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
                       getTooltipItems: (spots) {
                         return spots.map((spot) {
                           final date = _dailyMoods.keys.toList()[spot.x.toInt()];
-                          if (spot.y == _dailyMoodAverage[date]) {
-                            return LineTooltipItem(
-                              "Average Mood\n$date",
-                              TextStyle(color: Colors.greenAccent),
-                            );
-                          }
-                          final mood = _dailyMoods[date]![spot.y.toInt()];
                           return LineTooltipItem(
-                            "$mood\n$date",
-                            TextStyle(color: isDark ? Colors.white : Colors.black),
+                            "Avg Mood\n$date",
+                            TextStyle(color: Colors.greenAccent),
                           );
                         }).toList();
                       },

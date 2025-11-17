@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../notification_service.dart'; // <-- import NotificationService
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -30,18 +31,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
+  final NotificationService _notificationService = NotificationService();
 
   // ------------------ Email/Password Signup ------------------
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ✅ Check if user agreed to terms
     if (!_isAgreed) {
       _showSnackBar("Please agree to the Privacy Policy and Terms.", Colors.red);
       return;
     }
 
-    // ✅ Check if passwords match (extra validation)
     if (passwordController.text.trim() != confirmController.text.trim()) {
       _showSnackBar("Passwords do not match.", Colors.redAccent);
       return;
@@ -50,7 +50,6 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Check for existing username (case-insensitive)
       final existing = await FirebaseFirestore.instance
           .collection('users')
           .where('username',
@@ -63,38 +62,50 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      // ✅ Create new user in Firebase Authentication
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+      await _auth.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      await userCredential.user?.sendEmailVerification();
+      final user = userCredential.user;
 
-      // ✅ Store user data in Firestore (including terms agreement)
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'fullName': fullController.text.trim(),
-        'username': usernameController.text.trim().toLowerCase(),
-        'email': emailController.text.trim(),
-        'birthday': birthController.text.trim(),
-        'gender': gender ?? '',
-        'contactNumber': numController.text.trim(),
-        'agreedToTerms': _isAgreed, // ✅ store whether user agreed
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      if (user != null) {
+        // ✅ Send Firebase verification email
+        await user.sendEmailVerification();
 
-      _showSnackBar(
-          "Account created! Please verify your email before logging in.",
-          Colors.green);
+        // ✅ Store user in Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({
+          'fullName': fullController.text.trim(),
+          'username': usernameController.text.trim().toLowerCase(),
+          'email': emailController.text.trim(),
+          'birthday': birthController.text.trim(),
+          'gender': gender ?? '',
+          'contactNumber': numController.text.trim(),
+          'agreedToTerms': _isAgreed,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
 
-      await Future.delayed(const Duration(seconds: 1));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+        // ✅ Send device notification immediately
+        await _notificationService.showNotification(
+          title: "Welcome to NeuroHelp 💜",
+          body:
+          "Hi ${fullController.text.trim()}, your account has been created!",
+        );
+
+        _showSnackBar(
+            "Account created! Please verify your email before logging in.",
+            Colors.green);
+
+        await Future.delayed(const Duration(seconds: 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = "Error creating account";
       if (e.code == 'email-already-in-use') message = "Email already in use!";
@@ -111,15 +122,10 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _signUpWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
 
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
-
+      final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
@@ -128,30 +134,37 @@ class _SignupScreenState extends State<SignupScreen> {
       UserCredential userCredential =
       await _auth.signInWithCredential(credential);
 
+      final user = userCredential.user;
+      if (user == null) return;
+
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(userCredential.user!.uid)
+          .doc(user.uid)
           .get();
 
       if (!userDoc.exists) {
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(userCredential.user!.uid)
+            .doc(user.uid)
             .set({
-          'fullName': userCredential.user?.displayName ?? '',
-          'username': (userCredential.user?.displayName ??
-              userCredential.user?.uid ??
-              '')
+          'fullName': user.displayName ?? '',
+          'username': (user.displayName ?? user.uid ?? '')
               .replaceAll(' ', '')
               .toLowerCase(),
-          'email': userCredential.user?.email ?? '',
+          'email': user.email ?? '',
           'birthday': '',
           'gender': '',
           'contactNumber': '',
-          'agreedToTerms': true, // ✅ Automatically true for Google sign-up
+          'agreedToTerms': true,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
+
+      // ✅ Show device notification for Google signup
+      await _notificationService.showNotification(
+        title: "Welcome to NeuroHelp 💜",
+        body: "Hi ${user.displayName ?? 'User'}, your account is ready!",
+      );
 
       Navigator.pushReplacement(
         context,
@@ -164,7 +177,6 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  // ------------------ Snackbar Helper ------------------
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -176,7 +188,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // ------------------ UI ------------------
+  // ------------------ UI & Helper Widgets ------------------
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -214,8 +226,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     const SizedBox(height: 30),
-
-
                     _buildTextField(fullController, "Full Name", Icons.person),
                     const SizedBox(height: 16),
                     _buildTextField(usernameController, "Username", Icons.person,
@@ -227,7 +237,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         }),
                     const SizedBox(height: 16),
-
                     _buildTextField(emailController, "Email", Icons.email,
                         keyboardType: TextInputType.emailAddress, validator: (value) {
                           if (value == null || value.isEmpty) return "Please enter your email";
@@ -251,8 +260,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       validator: (value) => value == null ? "Please select gender" : null,
                     ),
                     const SizedBox(height: 20),
-
-                    // ✅ Phone number validation (exactly 11 digits)
                     _buildTextField(numController, "Contact Number", Icons.phone,
                         keyboardType: TextInputType.phone, validator: (value) {
                           if (value == null || value.isEmpty) return "Please enter your contact number";
@@ -262,12 +269,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         }),
                     const SizedBox(height: 30),
-
                     _buildPasswordField(),
                     const SizedBox(height: 20),
                     _buildConfirmPasswordField(),
                     const SizedBox(height: 20),
-
                     Row(
                       children: [
                         Checkbox(
@@ -284,7 +289,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-
                     ElevatedButton(
                       onPressed: (!_isAgreed || _isLoading)
                           ? null
@@ -294,20 +298,21 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isAgreed ? Colors.deepPurple : Colors.grey,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text("Sign Up",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
-
                     const SizedBox(height: 16),
                     const Text("Or continue with",
                         style: TextStyle(color: Colors.grey, fontSize: 14)),
                     const SizedBox(height: 16),
-
                     ElevatedButton.icon(
                       onPressed: _isLoading ? null : _signUpWithGoogle,
                       icon: const Icon(Icons.g_mobiledata, color: Colors.red, size: 30),
@@ -315,11 +320,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 40, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
-
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () => Navigator.pushReplacement(
