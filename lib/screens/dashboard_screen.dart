@@ -12,6 +12,7 @@ import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ai_service.dart';
 import 'heneuro_tab.dart'; // ✅ import for AI chat tab
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -118,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DailyJournalScreen(), // ✅ fixed
+                          builder: (_) => DailyJournalScreen(),
                         ),
                       );
                     }),
@@ -126,23 +127,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     "Chat with Heneuro", "assets/images/chat.png", () {
                   _onItemTapped(2); // open AI tab
                 }),
-                _buildAnimatedCard("Mood Updates", "assets/images/mood.png", () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          MoodUpdatesScreen(uid: widget.username), // ✅ fixed
-                    ),
-                  );
-                }),
+                _buildAnimatedCard("Mood Updates", "assets/images/mood.png",
+                        () {
+                      final String uid = FirebaseAuth.instance.currentUser!.uid;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MoodUpdatesScreen(uid: uid),
+                        ),
+                      );
+                    }),
                 _buildAnimatedCard(
                   "Listen to Music",
                   "assets/images/music.png",
                       () {
+                    final String uid = FirebaseAuth.instance.currentUser!.uid;
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => MusicScreen(username: widget.username),
+                        builder: (_) => MusicScreen(
+                          uid: uid,
+                          isDarkMode: _isDarkMode, // ✅ fixed: added parameter
+                        ),
                       ),
                     );
                   },
@@ -283,17 +289,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               "Write your thoughts and reflect daily.", () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (_) => DailyJournalScreen()), // ✅ fixed
+                  MaterialPageRoute(builder: (_) => DailyJournalScreen()),
                 );
               }),
           _buildFeatureCard("Mood Tracker", Icons.mood,
               "Track your mood and emotions regularly.", () {
+                final String uid = FirebaseAuth.instance.currentUser!.uid;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) =>
-                          MoodUpdatesScreen(uid: widget.username)), // ✅ fixed
+                      builder: (_) => MoodUpdatesScreen(uid: uid)),
                 );
               }),
           _buildFeatureCard("Self-Help Resources", Icons.self_improvement,
@@ -336,7 +341,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pages = [
       _buildHome(),
       _buildExplore(),
-      HeneuroTab(isDarkMode: _isDarkMode), // ✅ new AI tab
+      HeneuroTab(isDarkMode: _isDarkMode), // ✅ AI tab
       _buildJournalMood(),
       ProfileTab(
         username: widget.username,

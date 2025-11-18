@@ -48,10 +48,11 @@ class AIService {
       }
 
       final prompt = """
-      The user wrote: "$userText"
-      Based on this text, pick the closest mood from the following list: ${moods.join(", ")}.
-      Reply ONLY with the mood exactly as it appears in the list.
-      """;
+    The user wrote: "$userText"
+    The text may be in any language, including Tagalog. 
+    Detect the mood based on the text and pick the closest mood from the following list: ${moods.join(", ")}.
+    Reply ONLY with the mood exactly as it appears in the list.
+    """;
 
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);
@@ -83,6 +84,37 @@ class AIService {
       return response.text?.trim() ?? "Sorry, I didn't understand that.";
     } catch (e) {
       return "⚠️ AI Error: ${e.toString()}";
+    }
+  }
+
+  /// Get music/podcast links based on mood and category
+  Future<List<String>> getMusicForMood(String mood, String category) async {
+    try {
+      if (detectSuicidalRisk(mood)) {
+        // Return crisis resources if suicidal risk is detected
+        return [
+          "https://www.iasp.info/resources/Crisis-Centres/",
+          "https://suicidepreventionlifeline.org/"
+        ];
+      }
+
+      // Prompt AI to suggest 3-5 YouTube music/podcast links per mood
+      final prompt = """
+      Provide a list of 3-5 YouTube links for $category suitable for someone feeling $mood.
+      Only give the links, no descriptions or text.
+      """;
+
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+
+      // Extract URLs from AI response
+      final urls = RegExp(r'(https?://[^\s]+)').allMatches(response.text ?? "")
+          .map((m) => m.group(0)!)
+          .toList();
+
+      return urls.isNotEmpty ? urls : [];
+    } catch (e) {
+      return [];
     }
   }
 }

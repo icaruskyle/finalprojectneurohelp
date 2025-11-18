@@ -24,7 +24,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     super.dispose();
   }
 
-  // ---------------- Save Journal Entry ----------------
   Future<void> _saveEntry() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -47,8 +46,55 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       // Detect suicidal risk
       final suicidalDetected = _detectSuicidalRisk(text);
 
+      // Fetch birthdate from Firestore user profile
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      DateTime? birthDate;
+      if (userDoc.exists && userDoc.data() != null && userDoc.data()!['birthDate'] != null) {
+        birthDate = (userDoc.data()!['birthDate'] as Timestamp).toDate();
+      }
+
       // AI predicts mood
-      final mood = await ai.predictMood(text);
+      String mood = await ai.predictMood(text);
+
+      // ---------------- Age-based override for sensitive keywords ----------------
+      String adjustMoodBasedOnAge(String text, DateTime birthDate) {
+        final now = DateTime.now();
+        int age = now.year - birthDate.year;
+        if (birthDate.month > now.month || (birthDate.month == now.month && birthDate.day > now.day)) {
+          age -= 1; // Correct if birthday hasn't occurred yet this year
+        }
+
+        final sensitiveKeywords = [
+          // English
+          "i got pregnant",
+          "i am pregnant",
+          "i became pregnant",
+          "unexpected pregnancy",
+          // Tagalog / Filipino
+          "nabuntis ako",
+          "nagbuntis ako",
+          "nagkaroon ng anak",
+          "hindi inaasahang pagbubuntis",
+          "nagbuntis",
+        ];
+
+        final lowerText = text.toLowerCase();
+
+        for (final keyword in sensitiveKeywords) {
+          if (lowerText.contains(keyword)) {
+            if (age <= 21) return "😞 Disappointed";
+            if (age >= 22 && age <= 25) return "🙂 Neutral";
+            return "😇 Grateful";
+          }
+        }
+
+        return "";
+      }
+
+      if (birthDate != null) {
+        final adjustedMood = adjustMoodBasedOnAge(text, birthDate);
+        if (adjustedMood.isNotEmpty) mood = adjustedMood;
+      }
 
       final date = DateTime.now().toIso8601String();
 
@@ -88,7 +134,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       }
     }
   }
-
   // ---------------- Delete Journal Entry & Linked Mood ----------------
   Future<void> _deleteEntry(String journalId) async {
     if (user == null) return;

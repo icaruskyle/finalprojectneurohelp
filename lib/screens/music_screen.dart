@@ -1,136 +1,234 @@
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-// Global ValueNotifier to track mood in real-time
-ValueNotifier<String> moodNotifier = ValueNotifier<String>('cheerful');
-
-// Singleton AudioPlayer for background playback across screens
-final AudioPlayer globalAudioPlayer = AudioPlayer();
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'ai_service.dart';
 
 class MusicScreen extends StatefulWidget {
-  final String username;
-  const MusicScreen({super.key, required this.username});
+  final String uid;
+  final bool isDarkMode;
+
+  const MusicScreen({super.key, required this.uid, required this.isDarkMode});
 
   @override
   State<MusicScreen> createState() => _MusicScreenState();
 }
 
-class _MusicScreenState extends State<MusicScreen> {
-  String? _currentlyPlayingUrl;
+class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin {
+  final AIService ai = AIService();
+  String currentMood = '🙂 Neutral';
+  bool isLoading = true;
 
-  // Songs based on mood
-  final List<Map<String, String>> sadSongs = [
-    {
-      'title': 'Niki - lowkey',
-      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    },
-    {
-      'title': 'Earl Agustin - Sad Song',
-      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    },
-    {
-      'title': 'Silent Sanctuary - Ikaw at Ako',
-      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    },
+  String? selectedCategory;
+  List<String> musicList = [];
+  TabController? tabController;
+
+  final List<String> moods = [
+    "😊 Happy", "😇 Grateful", "😌 Content", "😎 Confident", "🥳 Excited",
+    "😚 Loved", "🤗 Hopeful", "🤩 Inspired", "😋 Playful", "🤠 Cheerful",
+    "🧘 Calm", "🙂 Neutral", "😢 Sad", "💔 Heartbroken", "😞 Disappointed",
+    "😔 Lonely", "😩 Overwhelmed", "😕 Confused", "😟 Anxious", "😰 Stressed",
+    "😤 Frustrated", "😠 Irritated", "😡 Angry", "😬 Nervous", "😳 Embarrassed",
+    "😴 Tired", "😫 Exhausted", "😩 Hopeless", "😶 Empty", "😑 Bored",
+    "🤒 Unwell", "🤯 Burned Out", "⚠️ Suicidal/Warning", "🤔 Reflective",
+    "😌 Thoughtful", "😮 Surprised", "😶 Indifferent", "😐 Blank", "🫤 Uncertain",
+    "🤫 Quiet", "😅 Awkward", "🤨 Skeptical", "🤓 Focused", "🤭 Amused"
   ];
 
-  final List<Map<String, String>> cheerfulSongs = [
-    {
-      'title': 'Niki - Parade',
-      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    },
-    {
-      'title': 'Earl Agustin - Happy Song',
-      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    },
-    {
-      'title': 'Silent Sanctuary - Musika',
-      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    },
+  final List<String> categories = [
+    "Songs for Sad Songs",
+    "Songs for Happy Songs",
+    "Songs that Ease Your Pain",
+    "Podcast for Mental Health",
   ];
 
   @override
   void initState() {
     super.initState();
-    _loadMood();
-    // Listen for mood changes
-    moodNotifier.addListener(() {
-      _autoPlayBasedOnMood();
-      setState(() {}); // rebuild UI
+    detectMood();
+  }
+
+  Future<void> detectMood() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid)
+          .collection('daily_journal')
+          .orderBy('date', descending: true)
+          .limit(1)
+          .get();
+
+      String journalText = '';
+      if (snapshot.docs.isNotEmpty) {
+        journalText = snapshot.docs.first.data()['text'] ?? '';
+      }
+
+      final mood = await ai.predictMood(journalText);
+
+      setState(() {
+        currentMood = mood;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        currentMood = '🙂 Neutral';
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> selectCategory(String category) async {
+    setState(() {
+      selectedCategory = category;
+      tabController = TabController(length: moods.length, vsync: this);
+      isLoading = true;
+    });
+
+    // Scroll to detected mood
+    final moodIndex = moods.indexOf(currentMood);
+    if (moodIndex != -1 && tabController != null) {
+      tabController!.index = moodIndex;
+    }
+
+    // Fetch music dynamically from AI
+    final list = await ai.getMusicForMood(currentMood, category);
+
+    setState(() {
+      musicList = list;
+      isLoading = false;
     });
   }
 
-  Future<void> _loadMood() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String mood = prefs.getString('lastMood') ?? 'cheerful';
-    moodNotifier.value = mood;
+  void goBackToCategories() {
+    setState(() {
+      selectedCategory = null;
+      musicList = [];
+      tabController?.dispose();
+      tabController = null;
+    });
   }
 
-  void _autoPlayBasedOnMood() {
-    List<Map<String, String>> songs =
-    moodNotifier.value == 'sad' ? sadSongs : cheerfulSongs;
-
-    // Play the first song automatically if nothing is playing
-    if (_currentlyPlayingUrl == null && songs.isNotEmpty) {
-      _playSong(songs[0]['url']!);
-    }
-  }
-
-  void _playSong(String url) async {
-    if (_currentlyPlayingUrl == url) {
-      await globalAudioPlayer.pause();
-      setState(() {
-        _currentlyPlayingUrl = null;
-      });
+  Future<void> _openMusic(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      await globalAudioPlayer.play(UrlSource(url));
-      setState(() {
-        _currentlyPlayingUrl = url;
-      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open the link.")),
+        );
+      }
     }
-  }
-
-  @override
-  void dispose() {
-    // Do NOT dispose globalAudioPlayer here, to allow background playback
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    String currentMood = moodNotifier.value;
-    List<Map<String, String>> songs =
-    currentMood == 'sad' ? sadSongs : cheerfulSongs;
+    final isDark = widget.isDarkMode;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Music Player - ${widget.username}'),
-        backgroundColor: Colors.deepPurple,
+        title: const Text("Listen to Music"),
+        backgroundColor: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
+        leading: selectedCategory != null
+            ? IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: goBackToCategories,
+        )
+            : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: detectMood,
+            tooltip: "Refresh Mood Music",
+          ),
+        ],
       ),
-      body: Column(
+      backgroundColor: isDark ? Colors.black : Colors.white,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : selectedCategory == null
+          ? Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: categories.map((cat) {
+            return Card(
+              color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                title: Text(
+                  cat,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  "Mood detected: $currentMood",
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                onTap: () => selectCategory(cat),
+              ),
+            );
+          }).toList(),
+        ),
+      )
+          : Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Text(
-              'Your mood: $currentMood',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+          TabBar(
+            controller: tabController,
+            isScrollable: true,
+            indicatorColor: Colors.white,
+            tabs: moods.map((m) => Tab(text: m)).toList(),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: songs.length,
-              itemBuilder: (context, index) {
-                final song = songs[index];
-                final isPlaying = _currentlyPlayingUrl == song['url'];
-
-                return ListTile(
-                  leading:
-                  Icon(isPlaying ? Icons.pause_circle : Icons.play_circle),
-                  title: Text(song['title']!),
-                  onTap: () => _playSong(song['url']!),
+            child: TabBarView(
+              controller: tabController,
+              children: moods.map((m) {
+                return FutureBuilder<List<String>>(
+                  future: ai.getMusicForMood(m, selectedCategory!),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final list = snapshot.data!;
+                    if (list.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "No music found for $m",
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: list.length,
+                      itemBuilder: (context, index) {
+                        final url = list[index];
+                        return Card(
+                          color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            leading: const Icon(Icons.music_note, color: Colors.white),
+                            title: Text(
+                              "Song ${index + 1}",
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            trailing: const Icon(Icons.open_in_new, color: Colors.white),
+                            onTap: () => _openMusic(url),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 );
-              },
+              }).toList(),
             ),
           ),
         ],
