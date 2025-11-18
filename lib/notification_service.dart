@@ -15,86 +15,88 @@ class NotificationService {
 
   bool notificationsEnabled = true;
 
-  /// Initialize all notifications
+  /// Initialize notifications and Firebase Messaging
   Future<void> initNotifications() async {
+    // Initialize timezone
     tz.initializeTimeZones();
 
-    const AndroidInitializationSettings androidInit =
+    // Android initialization
+    const AndroidInitializationSettings androidInitSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
+    // iOS initialization
+    const DarwinInitializationSettings iosInitSettings = DarwinInitializationSettings(
       requestSoundPermission: true,
       requestBadgePermission: true,
       requestAlertPermission: true,
     );
 
-    const InitializationSettings initSettings =
-    InitializationSettings(android: androidInit, iOS: iosInit);
+    const InitializationSettings initializationSettings =
+    InitializationSettings(android: androidInitSettings, iOS: iosInitSettings);
 
     await _flutterLocalNotificationsPlugin.initialize(
-      initSettings,
+      initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint("🔔 Notification tapped: ${response.payload}");
+        debugPrint('Notification clicked: ${response.payload}');
       },
     );
 
+    // Setup Firebase Messaging
     await _initializeFirebaseMessaging();
   }
 
-  /// Firebase Messaging Setup
   Future<void> _initializeFirebaseMessaging() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
+    // Only request permission on iOS
     if (Platform.isIOS) {
-      await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
     }
 
+    // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint("📩 FCM Message Received: ${message.notification?.title}");
+
       if (message.notification != null) {
         showNotification(
-          title: message.notification!.title ?? "NeuroHelp",
-          body: message.notification!.body ?? "You have a new alert",
+          title: message.notification!.title ?? 'NeuroHelp',
+          body: message.notification!.body ?? 'You have a new message.',
         );
       }
     });
 
+    // Get device token (store in Firestore if needed)
     final token = await messaging.getToken();
-    debugPrint("📱 Device FCM Token: $token");
+    debugPrint("🔑 Firebase Messaging Token: $token");
   }
 
-  /// Show Immediate Notification
+  /// Show immediate notification
   Future<void> showNotification({
     required String title,
     required String body,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'neurohelp_channel',
       'NeuroHelp Notifications',
+      channelDescription: 'Notifications for NeuroHelp reminders and alerts',
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,
       icon: '@mipmap/ic_launcher',
     );
 
-    const platformDetails = NotificationDetails(android: androidDetails);
-
-    // Use a quasi-unique id based on current time to avoid collisions
-    final int id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
     await _flutterLocalNotificationsPlugin.show(
-      id,
+      0,
       title,
       body,
       platformDetails,
-      payload: "neurohelp_payload",
+      payload: 'neurohelp_payload',
     );
   }
 
-  /// Schedule daily notification at user-selected time
+  /// Schedule daily notification at a specific TimeOfDay
   Future<void> scheduleDailyNotification({
     required String title,
     required String body,
@@ -102,10 +104,8 @@ class NotificationService {
   }) async {
     if (!notificationsEnabled) return;
 
-    await cancelDailyNotification();
-
     final now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduleDate = tz.TZDateTime(
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
       tz.local,
       now.year,
       now.month,
@@ -114,87 +114,72 @@ class NotificationService {
       time.minute,
     );
 
-    if (scheduleDate.isBefore(now)) {
-      scheduleDate = scheduleDate.add(const Duration(days: 1));
+    // If time already passed today, schedule for tomorrow
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
-    const androidDetails = AndroidNotificationDetails(
-      'neurohelp_daily',
-      'Daily Reminder',
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'neurohelp_channel_daily',
+      'Daily NeuroHelp Notifications',
+      channelDescription: 'Daily reminders for NeuroHelp users',
       importance: Importance.high,
       priority: Priority.high,
     );
 
-    const platformDetails = NotificationDetails(android: androidDetails);
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
     await _flutterLocalNotificationsPlugin.zonedSchedule(
-      100, // Daily Notification ID
+      1,
       title,
       body,
-      scheduleDate,
+      scheduledDate,
       platformDetails,
       androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
 
-    debugPrint("⏰ Daily notification scheduled at $scheduleDate");
+    debugPrint("✅ Daily notification scheduled for: $scheduledDate");
   }
 
-  /// Schedule hourly mood notification (repeats every hour)
-  ///
-  /// NOTE:
-  /// - flutter_local_notifications does not provide a `DateTimeComponents` value
-  ///   that repeats *every hour* via zonedSchedule. For hourly repeats we use
-  ///   `periodicallyShow(RepeatInterval.hourly)`, which starts shortly after
-  ///   calling this function (it does not schedule to start exactly at the
-  ///   next full hour). If you need "start at next full hour" behavior you'll
-  ///   need a background scheduling plugin (e.g., workmanager) or a combination
-  ///   of a one-shot zonedSchedule + periodic scheduling via platform-specific code.
+  /// Schedule hourly mood check notification
   Future<void> scheduleHourlyMoodNotification() async {
     if (!notificationsEnabled) return;
 
-    await cancelHourlyNotification();
-
-    const androidDetails = AndroidNotificationDetails(
-      'neurohelp_hourly',
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'neurohelp_channel_hourly',
       'Hourly Mood Check',
+      channelDescription: 'Ask user about mood every hour',
       importance: Importance.high,
       priority: Priority.high,
     );
 
-    const platformDetails = NotificationDetails(android: androidDetails);
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
-    // Use periodicallyShow for hourly repeats
-    await _flutterLocalNotificationsPlugin.periodicallyShow(
-      200, // Hourly Notification ID
+    final now = tz.TZDateTime.now(tz.local);
+
+    // Schedule first notification for the next full hour
+    tz.TZDateTime firstHour =
+    tz.TZDateTime(tz.local, now.year, now.month, now.day, now.hour + 1);
+
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      2,
       "How's your mood?",
       "Please update your mood for this hour.",
-      RepeatInterval.hourly,
+      firstHour,
       platformDetails,
       androidAllowWhileIdle: true,
-      payload: "neurohelp_hourly",
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time, // Will repeat daily same hour
     );
 
-    debugPrint("⏳ Hourly mood check scheduled (RepeatInterval.hourly)");
+    debugPrint("✅ Hourly mood notification scheduled starting: $firstHour");
   }
 
-  /// Cancel ONLY daily notifications
-  Future<void> cancelDailyNotification() async {
-    await _flutterLocalNotificationsPlugin.cancel(100);
-    debugPrint("🗑️ Daily notification canceled (id:100)");
-  }
-
-  /// Cancel ONLY hourly notifications
-  Future<void> cancelHourlyNotification() async {
-    await _flutterLocalNotificationsPlugin.cancel(200);
-    debugPrint("🗑️ Hourly notification canceled (id:200)");
-  }
-
-  /// Cancel ALL notifications
+  /// Cancel all notifications
   Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
-    debugPrint("🚫 ALL notifications cancelled");
+    debugPrint("🚫 All notifications canceled");
   }
 }
