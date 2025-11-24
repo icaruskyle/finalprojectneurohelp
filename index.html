@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroHelp Admin Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="brand">
+      <div class="logo">🧠</div>
+      <div class="brand-text">NeuroHelp Admin</div>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" data-page="dashboard">Dashboard</div>
+      <div class="nav-item" data-page="users">User Management</div>
+      <div class="nav-item" data-page="journal">Journal Entry</div>
+      <div class="nav-item" data-page="mood">Mood Reports</div>
+      <div class="nav-item" data-page="feedback">Feedback</div>
+      <div class="nav-item" data-page="content">Content</div>
+      <div class="nav-item" data-page="notifications">Notifications</div>
+      <div class="nav-item" data-page="logs">System Logs</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div class="page active" id="dashboard">
+      <h1>Dashboard</h1>
+      <div class="grid-row">
+        <div class="card-box">
+          <div class="box-title">Total Users</div>
+          <div class="box-value" id="totalUsers">0</div>
+        </div>
+        <div class="card-box">
+          <div class="box-title">Total Journals</div>
+          <div class="box-value" id="totalJournals">0</div>
+        </div>
+        <div class="card-box">
+          <div class="box-title">Total Moods</div>
+          <div class="box-value" id="totalMoods">0</div>
+        </div>
+      </div>
+      <canvas id="moodChart" width="400" height="200"></canvas>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="page" id="users">
+      <h1>User Management</h1>
+      <input type="text" id="userSearch" placeholder="Search users by UID or subcollection...">
+      <table>
+        <thead>
+          <tr><th>UID</th><th>Subcollections</th></tr>
+        </thead>
+        <tbody id="userTable"></tbody>
+      </table>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="page" id="journal">
+      <h1>Journal Entries</h1>
+      <input type="text" id="journalSearch" placeholder="Search by UID or entry...">
+      <table>
+        <thead>
+          <tr><th>UID</th><th>Entry</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="journalTable"></tbody>
+      </table>
+    </div>
+
+    <!-- MOOD -->
+    <div class="page" id="mood">
+      <h1>Mood Reports</h1>
+      <table>
+        <thead>
+          <tr><th>UID</th><th>Mood</th><th>Date</th></tr>
+        </thead>
+        <tbody id="moodTable"></tbody>
+      </table>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="page" id="feedback">
+      <h1>Feedback</h1>
+      <table>
+        <thead>
+          <tr><th>UID</th><th>Message</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="feedbackTable"></tbody>
+      </table>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="page" id="content">
+      <h1>Content</h1>
+      <input type="text" id="contentTitle" placeholder="Title">
+      <textarea id="contentBody" placeholder="Body"></textarea>
+      <button id="addContentBtn">Add Content</button>
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Body</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="contentTable"></tbody>
+      </table>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="page" id="notifications">
+      <h1>Notifications</h1>
+      <input type="text" id="notificationMessage" placeholder="Notification message">
+      <button id="sendNotificationBtn">Send</button>
+      <table>
+        <thead><tr><th>Message</th><th>Date</th></tr></thead>
+        <tbody id="notificationsTable"></tbody>
+      </table>
+    </div>
+
+    <!-- SYSTEM LOGS -->
+    <div class="page" id="logs">
+      <h1>System Logs</h1>
+      <table>
+        <thead><tr><th>Action</th><th>Admin UID</th><th>Date</th></tr></thead>
+        <tbody id="logsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>
