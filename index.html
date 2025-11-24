@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NeuroHelp Admin Dashboard</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuroHelp Admin Panel</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+
+  <!-- Sidebar -->
   <div class="sidebar">
     <div class="brand">
       <div class="logo">🧠</div>
@@ -23,10 +25,13 @@
       <div class="nav-item" data-page="notifications">Notifications</div>
       <div class="nav-item" data-page="logs">System Logs</div>
     </div>
+    <button id="darkModeToggle">Toggle Dark Mode</button>
   </div>
 
+  <!-- Main Content -->
   <div class="main">
-    <!-- DASHBOARD -->
+
+    <!-- Dashboard -->
     <div class="page active" id="dashboard">
       <h1>Dashboard</h1>
       <div class="grid-row">
@@ -43,90 +48,126 @@
           <div class="box-value" id="totalMoods">0</div>
         </div>
       </div>
-      <canvas id="moodChart" width="400" height="200"></canvas>
+      <canvas id="moodChart" style="height:200px;"></canvas>
     </div>
 
-    <!-- USER MANAGEMENT -->
+    <!-- Users -->
     <div class="page" id="users">
       <h1>User Management</h1>
-      <input type="text" id="userSearch" placeholder="Search users by UID or subcollection...">
-      <table>
+      <input type="text" id="userSearch" placeholder="Search users...">
+      <table id="userTable">
         <thead>
-          <tr><th>UID</th><th>Subcollections</th></tr>
+          <tr><th>UID</th><th>Email</th><th>Name</th><th>Actions</th></tr>
         </thead>
-        <tbody id="userTable"></tbody>
+        <tbody></tbody>
       </table>
     </div>
 
-    <!-- JOURNAL -->
+    <!-- Journal -->
     <div class="page" id="journal">
-      <h1>Journal Entries</h1>
-      <input type="text" id="journalSearch" placeholder="Search by UID or entry...">
-      <table>
-        <thead>
-          <tr><th>UID</th><th>Entry</th><th>Date</th><th>Actions</th></tr>
-        </thead>
-        <tbody id="journalTable"></tbody>
-      </table>
-    </div>
-
-    <!-- MOOD -->
+  <label for="selectUserIdJournal">Select User ID:</label>
+  <select id="selectUserIdJournal">
+    <option value="">-- Select User ID --</option>
+  </select>
+  <h1>Journal Entries</h1>
+  <input type="text" id="journalSearch" placeholder="Search journal entries...">
+  <label for="journalDateFilter">Filter by date:</label>
+  <input type="date" id="journalDateFilter">
+  <table id="journalTable">
+    <thead>
+      <tr><th>User ID</th><th>Predicted Mood</th><th>Date</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+    <!-- Mood Reports -->
     <div class="page" id="mood">
-      <h1>Mood Reports</h1>
-      <table>
-        <thead>
-          <tr><th>UID</th><th>Mood</th><th>Date</th></tr>
-        </thead>
-        <tbody id="moodTable"></tbody>
-      </table>
-    </div>
-
-    <!-- FEEDBACK -->
+  <label for="selectUserIdMood">Select User ID:</label>
+  <select id="selectUserIdMood">
+    <option value="">-- Select User ID --</option>
+  </select>
+  <h1>Mood Reports</h1>
+  <label for="moodFilter">Filter by mood:</label>
+  <select id="moodFilter">
+    <option value="">All</option>
+    <option value="positive">Positive</option>
+    <option value="neutral">Neutral</option>
+    <option value="negative">Negative</option>
+  </select>
+  <table id="moodTable">
+    <thead>
+      <tr><th>User ID</th><th>Mood</th><th>Date</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+    <!-- Feedback -->
     <div class="page" id="feedback">
-      <h1>Feedback</h1>
-      <table>
-        <thead>
-          <tr><th>UID</th><th>Message</th><th>Date</th><th>Actions</th></tr>
-        </thead>
-        <tbody id="feedbackTable"></tbody>
-      </table>
-    </div>
+ <label for="selectUserIdFeedback">Select User ID:</label>
+<select id="selectUserIdFeedback">
+  <option value="">-- Select User ID --</option>
+</select>
+  <h1>Feedback</h1>
+  <table id="feedbackTable">
+    <thead>
+      <tr><th>User ID</th><th>Message</th><th>Date</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
-    <!-- CONTENT -->
+    <!-- Content -->
     <div class="page" id="content">
+      <label for="selectUserContent">Select User:</label>
+      <select id="selectUserContent">
+        <option value="">-- Select User --</option>
+      </select>
       <h1>Content</h1>
       <input type="text" id="contentTitle" placeholder="Title">
       <textarea id="contentBody" placeholder="Body"></textarea>
       <button id="addContentBtn">Add Content</button>
-      <table>
+      <table id="contentTable">
         <thead>
           <tr><th>Title</th><th>Body</th><th>Date</th><th>Actions</th></tr>
         </thead>
-        <tbody id="contentTable"></tbody>
+        <tbody></tbody>
       </table>
     </div>
 
-    <!-- NOTIFICATIONS -->
+    <!-- Notifications -->
     <div class="page" id="notifications">
+      <label for="selectUserNotifications">Select User:</label>
+      <select id="selectUserNotifications">
+        <option value="">-- Select User --</option>
+      </select>
       <h1>Notifications</h1>
-      <input type="text" id="notificationMessage" placeholder="Notification message">
-      <button id="sendNotificationBtn">Send</button>
-      <table>
-        <thead><tr><th>Message</th><th>Date</th></tr></thead>
-        <tbody id="notificationsTable"></tbody>
+      <input type="text" id="notificationMessage" placeholder="Message">
+      <button id="sendNotificationBtn">Send Notification</button>
+      <table id="notificationsTable">
+        <thead>
+          <tr><th>Message</th><th>Date</th></tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
 
-    <!-- SYSTEM LOGS -->
+    <!-- System Logs -->
     <div class="page" id="logs">
+      <label for="selectUserLogs">Select User:</label>
+      <select id="selectUserLogs">
+        <option value="">-- Select User --</option>
+      </select>
       <h1>System Logs</h1>
-      <table>
-        <thead><tr><th>Action</th><th>Admin UID</th><th>Date</th></tr></thead>
-        <tbody id="logsTable"></tbody>
+      <table id="logsTable">
+        <thead>
+          <tr><th>Action</th><th>Admin UID</th><th>Date</th></tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
+
   </div>
 
-<script type="module" src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
