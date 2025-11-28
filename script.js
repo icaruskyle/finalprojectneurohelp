@@ -22,9 +22,9 @@ document.querySelectorAll(".nav-item").forEach(item => {
       case "journal": await loadJournals(); break;
       case "mood": await loadMoods(); break;
       case "feedback": await loadFeedback(); break;
-      case "content": await loadContent(); break;
-      case "notifications": await loadNotifications(); break;
-      case "logs": await loadLogs(); break;
+      case "articles": await loadArticles(); break;
+      case "community": await loadCommunity(); break;
+      case "events": await loadEvents(); break;
       case "dashboard": await loadDashboard(); break;
     }
   });
@@ -37,12 +37,6 @@ darkToggle.addEventListener("click", () => {
   localStorage.setItem("darkMode", document.body.classList.contains("dark-mode"));
 });
 if(localStorage.getItem("darkMode") === "true") document.body.classList.add("dark-mode");
-
-// ---------------- HELPER ----------------
-async function addLog(action){
-  const adminUid = "admin"; // replace with actual admin UID
-  await addDoc(collection(db,"system_logs"), {action, adminUid, date:new Date().toISOString()});
-}
 
 // ---------------- DASHBOARD ----------------
 async function loadDashboard(filterDate = null) {
@@ -125,14 +119,12 @@ window.saveUser = async uid=>{
   const email = row.find(td=>td.dataset.field==="email").innerText;
   const name = row.find(td=>td.dataset.field==="name").innerText;
   await updateDoc(doc(db,"users",uid), {email,name});
-  addLog(`Updated user ${uid}`);
   alert("User updated!");
 }
 
 window.deleteUser = async uid=>{
   if(confirm("Delete user?")){
     await deleteDoc(doc(db,"users",uid));
-    addLog(`Deleted user ${uid}`);
     loadUsers();
   }
 }
@@ -143,13 +135,10 @@ document.getElementById("userSearch").addEventListener("input", loadUsers);
 const selectUserIdJournal = document.getElementById("selectUserIdJournal");
 const selectUserIdMood = document.getElementById("selectUserIdMood");
 const selectUserIdFeedback = document.getElementById("selectUserIdFeedback");
-const selectUserContent = document.getElementById("selectUserContent");
-const selectUserNotifications = document.getElementById("selectUserNotifications");
-const selectUserLogs = document.getElementById("selectUserLogs");
 
 async function loadUserDropdowns() {
   const usersSnap = await getDocs(collection(db,"users"));
-  const allSelects = [selectUserIdJournal, selectUserIdMood, selectUserIdFeedback, selectUserContent, selectUserNotifications, selectUserLogs];
+  const allSelects = [selectUserIdJournal, selectUserIdMood, selectUserIdFeedback];
 
   allSelects.forEach(select => select.innerHTML = '<option value="">-- Select User ID --</option>');
 
@@ -201,14 +190,12 @@ window.saveJournal = async (uid, id) => {
   const row = [...journalTable.querySelectorAll(`td[data-id='${id}'][data-user='${uid}']`)];
   const mood = row.find(td => td.dataset.field === "mood").innerText;
   await updateDoc(doc(db, `users/${uid}/daily_journal`, id), { mood });
-  addLog(`Updated mood for journal ${id}`);
   alert("Journal updated!");
 }
 
 window.deleteJournal = async (uid, id) => {
   if (confirm("Delete journal?")) {
     await deleteDoc(doc(db, `users/${uid}/daily_journal`, id));
-    addLog(`Deleted journal ${id}`);
     loadJournals();
   }
 }
@@ -257,11 +244,10 @@ selectUserIdMood.addEventListener("change", loadMoods);
 moodFilter.addEventListener("change", loadMoods);
 
 // ---------------- FEEDBACK ----------------
-const feedbackTable = document.getElementById("feedbackTable"); // make sure this exists
-//const selectUserIdFeedback = document.getElementById("selectUserIdFeedback"); // correct reference
+const feedbackTable = document.getElementById("feedbackTable");
 
 async function loadFeedback() {
-  const uid = selectUserIdFeedback.value; // use the selected ID now
+  const uid = selectUserIdFeedback.value;
   if (!uid) {
     feedbackTable.querySelector("tbody").innerHTML = `<tr><td colspan="4">Please select a user first</td></tr>`;
     return;
@@ -280,9 +266,7 @@ async function loadFeedback() {
     fbSnap.forEach(docSnap => {
       const data = docSnap.data();
       let date = "-";
-      if (data.timestamp) {
-        date = data.timestamp.toDate ? data.timestamp.toDate().toLocaleString() : new Date(data.timestamp).toLocaleString();
-      }
+      if (data.timestamp) date = data.timestamp.toDate ? data.timestamp.toDate().toLocaleString() : new Date(data.timestamp).toLocaleString();
 
       tbody.innerHTML += `<tr>
         <td>${uid}</td>
@@ -292,113 +276,181 @@ async function loadFeedback() {
       </tr>`;
     });
   } catch (error) {
-    console.error("Error loading feedback:", error);
     feedbackTable.querySelector("tbody").innerHTML = `<tr><td colspan="4">Error loading data</td></tr>`;
   }
 }
 
-// Trigger load when ID is selected
 selectUserIdFeedback.addEventListener("change", loadFeedback);
 
 window.deleteFeedback = async (uid, id) => {
   if (confirm("Delete feedback?")) {
     await deleteDoc(doc(db, `users/${uid}/feedback`, id));
-    addLog(`Deleted feedback ${id}`);
     loadFeedback();
   }
 };
-// ---------------- CONTENT ----------------
-const contentTable = document.getElementById("contentTable");
-document.getElementById("addContentBtn").addEventListener("click", async ()=>{
-  const title = document.getElementById("contentTitle").value;
-  const body = document.getElementById("contentBody").value;
-  if(title && body){
-    await addDoc(collection(db,"content"), {title,body,date:new Date().toISOString()});
-    addLog(`Added content: ${title}`);
-    loadContent();
+
+// ---------------- ARTICLES ----------------
+const articleTable = document.getElementById("articleTable");
+
+document.getElementById("addArticleBtn").addEventListener("click", async () => {
+  const title = document.getElementById("articleTitle").value;
+  const image = document.getElementById("articleImage").value;
+  const content = document.getElementById("articleContent").value;
+
+  if(title && content){
+    await addDoc(collection(db,"articles"), {title,image,content,date:new Date().toISOString()});
+    loadArticles();
   }
 });
 
-async function loadContent(){
-  const snapshot = await getDocs(collection(db,"content"));
-  contentTable.querySelector("tbody").innerHTML = "";
+async function loadArticles(){
+  const snapshot = await getDocs(collection(db,"articles"));
+  articleTable.querySelector("tbody").innerHTML = "";
+
   snapshot.forEach(d=>{
     const data = d.data();
-    contentTable.querySelector("tbody").innerHTML += `<tr>
-      <td contenteditable="true" data-field="title" data-id="${d.id}">${data.title}</td>
-      <td contenteditable="true" data-field="body" data-id="${d.id}">${data.body}</td>
-      <td>${data.date}</td>
-      <td>
-        <button onclick="deleteContent('${d.id}')">Delete</button>
-        <button onclick="saveContent('${d.id}')">Save</button>
-      </td>
-    </tr>`;
+    articleTable.querySelector("tbody").innerHTML += `
+      <tr>
+        <td contenteditable="true" data-field="title" data-id="${d.id}">${data.title}</td>
+        <td contenteditable="true" data-field="image" data-id="${d.id}">${data.image||""}</td>
+        <td contenteditable="true" data-field="content" data-id="${d.id}">${data.content}</td>
+        <td>${data.date}</td>
+        <td>
+          <button onclick="deleteArticle('${d.id}')">Delete</button>
+          <button onclick="saveArticle('${d.id}')">Save</button>
+        </td>
+      </tr>`;
   });
 }
 
-window.saveContent = async (id)=>{
-  const row = [...contentTable.querySelectorAll(`td[data-id='${id}']`)];
+window.saveArticle = async (id) => {
+  const row = [...articleTable.querySelectorAll(`td[data-id='${id}']`)];
   const title = row.find(td=>td.dataset.field==="title").innerText;
-  const body = row.find(td=>td.dataset.field==="body").innerText;
-  await updateDoc(doc(db,"content",id), {title,body});
-  addLog(`Updated content ${id}`);
-  alert("Content updated!");
-}
+  const image = row.find(td=>td.dataset.field==="image").innerText;
+  const content = row.find(td=>td.dataset.field==="content").innerText;
 
-window.deleteContent = async (id)=>{
-  if(confirm("Delete content?")){
-    await deleteDoc(doc(db,"content",id));
-    addLog(`Deleted content ${id}`);
-    loadContent();
+  await updateDoc(doc(db,"articles",id),{title,image,content});
+  alert("Article updated!");
+};
+
+window.deleteArticle = async (id) => {
+  if(confirm("Delete this article?")){
+    await deleteDoc(doc(db,"articles",id));
+    loadArticles();
   }
-}
+};
 
-// ---------------- NOTIFICATIONS ----------------
-document.getElementById("sendNotificationBtn").addEventListener("click", async ()=>{
-  const message = document.getElementById("notificationMessage").value;
-  if(message){
-    await addDoc(collection(db,"notifications"), {message,date:new Date().toISOString()});
-    addLog(`Sent notification: ${message}`);
-    loadNotifications();
+// ---------------- COMMUNITY ----------------
+const communityTable = document.getElementById("communityTable");
+
+document.getElementById("addCommunityBtn").addEventListener("click", async () => {
+  const title = document.getElementById("communityTitle").value;
+  const message = document.getElementById("communityMessage").value;
+
+  if(title && message){
+    await addDoc(collection(db,"community"),{title,message,date:new Date().toISOString()});
+    loadCommunity();
   }
 });
 
-const notificationsTable = document.getElementById("notificationsTable");
-async function loadNotifications(){
-  const snapshot = await getDocs(collection(db,"notifications"));
-  notificationsTable.querySelector("tbody").innerHTML = "";
+async function loadCommunity(){
+  const snapshot = await getDocs(collection(db,"community"));
+  communityTable.querySelector("tbody").innerHTML = "";
+
   snapshot.forEach(d=>{
     const data = d.data();
-    notificationsTable.querySelector("tbody").innerHTML += `<tr>
-      <td>${data.message}</td>
-      <td>${data.date}</td>
-    </tr>`;
+    communityTable.querySelector("tbody").innerHTML += `
+      <tr>
+        <td contenteditable="true" data-field="title" data-id="${d.id}">${data.title}</td>
+        <td contenteditable="true" data-field="message" data-id="${d.id}">${data.message}</td>
+        <td>${data.date}</td>
+        <td>
+          <button onclick="deleteCommunity('${d.id}')">Delete</button>
+          <button onclick="saveCommunity('${d.id}')">Save</button>
+        </td>
+      </tr>`;
   });
 }
 
-// ---------------- SYSTEM LOGS ----------------
-const logsTable = document.getElementById("logsTable");
-async function loadLogs(){
-  const snapshot = await getDocs(collection(db,"system_logs"));
-  logsTable.querySelector("tbody").innerHTML = "";
-  snapshot.forEach(d=>{
+window.saveCommunity = async (id) => {
+  const row = [...communityTable.querySelectorAll(`td[data-id='${id}']`)];
+  const title = row.find(td=>td.dataset.field==="title").innerText;
+  const message = row.find(td=>td.dataset.field==="message").innerText;
+
+  await updateDoc(doc(db,"community",id),{title,message});
+  alert("Community post updated!");
+};
+
+window.deleteCommunity = async (id) => {
+  if(confirm("Delete this post?")){
+    await deleteDoc(doc(db,"community",id));
+    loadCommunity();
+  }
+};
+
+// ---------------- EVENTS ----------------
+const eventTable = document.getElementById("eventTable");
+
+document.getElementById("addEventBtn").addEventListener("click", async () => {
+  const eventTitle = document.getElementById("eventTitle").value;
+  const eventDesc = document.getElementById("eventDescription").value;
+  const eventDate = document.getElementById("eventDate").value;
+
+  if (eventTitle && eventDesc && eventDate) {
+    await addDoc(collection(db, "events"), {
+      title: eventTitle,
+      description: eventDesc,
+      date: eventDate,
+      createdAt: new Date().toISOString(),
+    });
+    loadEvents();
+  }
+});
+
+async function loadEvents() {
+  const snapshot = await getDocs(collection(db, "events"));
+  eventTable.querySelector("tbody").innerHTML = "";
+
+  snapshot.forEach((d) => {
     const data = d.data();
-    logsTable.querySelector("tbody").innerHTML += `<tr>
-      <td>${data.action}</td>
-      <td>${data.adminUid}</td>
-      <td>${data.date}</td>
-    </tr>`;
+    eventTable.querySelector("tbody").innerHTML += `
+      <tr>
+        <td contenteditable="true" data-field="title" data-id="${d.id}">${data.title}</td>
+        <td contenteditable="true" data-field="description" data-id="${d.id}">${data.description}</td>
+        <td contenteditable="true" data-field="date" data-id="${d.id}">${data.date}</td>
+        <td>
+          <button onclick="deleteEvent('${d.id}')">Delete</button>
+          <button onclick="saveEvent('${d.id}')">Save</button>
+        </td>
+      </tr>
+    `;
   });
 }
+
+window.saveEvent = async (id) => {
+  const row = [...eventTable.querySelectorAll(`td[data-id='${id}']`)];
+  const title = row.find(td => td.dataset.field === "title").innerText;
+  const description = row.find(td => td.dataset.field === "description").innerText;
+  const date = row.find(td => td.dataset.field === "date").innerText;
+
+  await updateDoc(doc(db, "events", id), { title, description, date });
+  alert("Event updated!");
+};
+
+window.deleteEvent = async (id) => {
+  if (confirm("Delete this event?")) {
+    await deleteDoc(doc(db, "events", id));
+    loadEvents();
+  }
+};
 
 // ---------------- INITIAL LOAD ----------------
-
-loadContent();
-loadNotifications();
-//loadJournals();
-//loadFeedback();
-//loadMoods();
-loadLogs();
 loadDashboard();
 loadUsers();
 loadUserDropdowns();
+loadJournals();
+loadMoods();
+loadFeedback();
+loadArticles();
+loadCommunity();
+loadEvents();

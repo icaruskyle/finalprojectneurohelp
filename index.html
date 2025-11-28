@@ -21,9 +21,9 @@
       <div class="nav-item" data-page="journal">Journal Entry</div>
       <div class="nav-item" data-page="mood">Mood Reports</div>
       <div class="nav-item" data-page="feedback">Feedback</div>
-      <div class="nav-item" data-page="content">Content</div>
-      <div class="nav-item" data-page="notifications">Notifications</div>
-      <div class="nav-item" data-page="logs">System Logs</div>
+      <div class="nav-item" data-page="articles">Articles</div>
+      <div class="nav-item" data-page="community">Community</div>
+      <div class="nav-item" data-page="events">Events</div>
     </div>
     <button id="darkModeToggle">Toggle Dark Mode</button>
   </div>
@@ -65,102 +65,92 @@
 
     <!-- Journal -->
     <div class="page" id="journal">
-  <label for="selectUserIdJournal">Select User ID:</label>
-  <select id="selectUserIdJournal">
-    <option value="">-- Select User ID --</option>
-  </select>
-  <h1>Journal Entries</h1>
-  <input type="text" id="journalSearch" placeholder="Search journal entries...">
-  <label for="journalDateFilter">Filter by date:</label>
-  <input type="date" id="journalDateFilter">
-  <table id="journalTable">
-    <thead>
-      <tr><th>User ID</th><th>Predicted Mood</th><th>Date</th><th>Actions</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+      <label for="selectUserIdJournal">Select User ID:</label>
+      <select id="selectUserIdJournal"><option value="">-- Select User ID --</option></select>
+      <h1>Journal Entries</h1>
+      <input type="text" id="journalSearch" placeholder="Search journal entries...">
+      <label for="journalDateFilter">Filter by date:</label>
+      <input type="date" id="journalDateFilter">
+      <table id="journalTable">
+        <thead>
+          <tr><th>User ID</th><th>Predicted Mood</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
     <!-- Mood Reports -->
     <div class="page" id="mood">
-  <label for="selectUserIdMood">Select User ID:</label>
-  <select id="selectUserIdMood">
-    <option value="">-- Select User ID --</option>
-  </select>
-  <h1>Mood Reports</h1>
-  <label for="moodFilter">Filter by mood:</label>
-  <select id="moodFilter">
-    <option value="">All</option>
-    <option value="positive">Positive</option>
-    <option value="neutral">Neutral</option>
-    <option value="negative">Negative</option>
-  </select>
-  <table id="moodTable">
-    <thead>
-      <tr><th>User ID</th><th>Mood</th><th>Date</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+      <label for="selectUserIdMood">Select User ID:</label>
+      <select id="selectUserIdMood"><option value="">-- Select User ID --</option></select>
+      <h1>Mood Reports</h1>
+      <label for="moodFilter">Filter by mood:</label>
+      <select id="moodFilter">
+        <option value="">All</option>
+        <option value="positive">Positive</option>
+        <option value="neutral">Neutral</option>
+        <option value="negative">Negative</option>
+      </select>
+      <table id="moodTable">
+        <thead>
+          <tr><th>User ID</th><th>Mood</th><th>Date</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
     <!-- Feedback -->
     <div class="page" id="feedback">
- <label for="selectUserIdFeedback">Select User ID:</label>
-<select id="selectUserIdFeedback">
-  <option value="">-- Select User ID --</option>
-</select>
-  <h1>Feedback</h1>
-  <table id="feedbackTable">
-    <thead>
-      <tr><th>User ID</th><th>Message</th><th>Date</th><th>Actions</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-
-    <!-- Content -->
-    <div class="page" id="content">
-      <label for="selectUserContent">Select User:</label>
-      <select id="selectUserContent">
-        <option value="">-- Select User --</option>
-      </select>
-      <h1>Content</h1>
-      <input type="text" id="contentTitle" placeholder="Title">
-      <textarea id="contentBody" placeholder="Body"></textarea>
-      <button id="addContentBtn">Add Content</button>
-      <table id="contentTable">
+      <label for="selectUserIdFeedback">Select User ID:</label>
+      <select id="selectUserIdFeedback"><option value="">-- Select User ID --</option></select>
+      <h1>Feedback</h1>
+      <table id="feedbackTable">
         <thead>
-          <tr><th>Title</th><th>Body</th><th>Date</th><th>Actions</th></tr>
+          <tr><th>User ID</th><th>Message</th><th>Date</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <!-- Notifications -->
-    <div class="page" id="notifications">
-      <label for="selectUserNotifications">Select User:</label>
-      <select id="selectUserNotifications">
-        <option value="">-- Select User --</option>
-      </select>
-      <h1>Notifications</h1>
-      <input type="text" id="notificationMessage" placeholder="Message">
-      <button id="sendNotificationBtn">Send Notification</button>
-      <table id="notificationsTable">
+    <!-- Articles -->
+    <div class="page" id="articles">
+      <h1>Articles</h1>
+      <input type="text" id="articleTitle" placeholder="Title">
+      <input type="text" id="articleImage" placeholder="Image URL">
+      <textarea id="articleContent" placeholder="Content"></textarea>
+      <button id="addArticleBtn">Add Article</button>
+      <table id="articleTable">
         <thead>
-          <tr><th>Message</th><th>Date</th></tr>
+          <tr><th>Title</th><th>Image</th><th>Content</th><th>Date</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <!-- System Logs -->
-    <div class="page" id="logs">
-      <label for="selectUserLogs">Select User:</label>
-      <select id="selectUserLogs">
-        <option value="">-- Select User --</option>
-      </select>
-      <h1>System Logs</h1>
-      <table id="logsTable">
+    <!-- Community -->
+    <div class="page" id="community">
+      <h1>Community</h1>
+      <input type="text" id="communityTitle" placeholder="Title">
+      <textarea id="communityMessage" placeholder="Message"></textarea>
+      <button id="addCommunityBtn">Add Post</button>
+      <table id="communityTable">
         <thead>
-          <tr><th>Action</th><th>Admin UID</th><th>Date</th></tr>
+          <tr><th>Title</th><th>Message</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Events -->
+    <div class="page" id="events">
+      <h1>Events</h1>
+      <input type="text" id="eventTitle" placeholder="Event Title">
+      <textarea id="eventDescription" placeholder="Event Description"></textarea>
+      <input type="date" id="eventDate">
+      <button id="addEventBtn">Add Event</button>
+      <table id="eventTable">
+        <thead>
+          <tr><th>Title</th><th>Description</th><th>Date</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
