@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'ai_service.dart';
 
 class MusicScreen extends StatefulWidget {
@@ -13,32 +13,25 @@ class MusicScreen extends StatefulWidget {
   State<MusicScreen> createState() => _MusicScreenState();
 }
 
-class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin {
+class _MusicScreenState extends State<MusicScreen> {
   final AIService ai = AIService();
   String currentMood = '🙂 Neutral';
   bool isLoading = true;
 
   String? selectedCategory;
   List<String> musicList = [];
-  TabController? tabController;
-
-  final List<String> moods = [
-    "😊 Happy", "😇 Grateful", "😌 Content", "😎 Confident", "🥳 Excited",
-    "😚 Loved", "🤗 Hopeful", "🤩 Inspired", "😋 Playful", "🤠 Cheerful",
-    "🧘 Calm", "🙂 Neutral", "😢 Sad", "💔 Heartbroken", "😞 Disappointed",
-    "😔 Lonely", "😩 Overwhelmed", "😕 Confused", "😟 Anxious", "😰 Stressed",
-    "😤 Frustrated", "😠 Irritated", "😡 Angry", "😬 Nervous", "😳 Embarrassed",
-    "😴 Tired", "😫 Exhausted", "😩 Hopeless", "😶 Empty", "😑 Bored",
-    "🤒 Unwell", "🤯 Burned Out", "⚠️ Suicidal/Warning", "🤔 Reflective",
-    "😌 Thoughtful", "😮 Surprised", "😶 Indifferent", "😐 Blank", "🫤 Uncertain",
-    "🤫 Quiet", "😅 Awkward", "🤨 Skeptical", "🤓 Focused", "🤭 Amused"
-  ];
+  YoutubePlayerController? _youtubeController;
 
   final List<String> categories = [
-    "Songs for Sad Songs",
-    "Songs for Happy Songs",
-    "Songs that Ease Your Pain",
-    "Podcast for Mental Health",
+    "Songs for Sad Mood",
+    "Songs for Happy Mood",
+    "Podcasts for Mental Health",
+  ];
+
+  final List<Color> categoryColors = [
+    Colors.deepPurple.shade300,
+    Colors.deepPurple.shade500,
+    Colors.deepPurple.shade700,
   ];
 
   @override
@@ -47,11 +40,14 @@ class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin
     detectMood();
   }
 
-  Future<void> detectMood() async {
-    setState(() {
-      isLoading = true;
-    });
+  @override
+  void dispose() {
+    _youtubeController?.dispose();
+    super.dispose();
+  }
 
+  Future<void> detectMood() async {
+    setState(() => isLoading = true);
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -72,7 +68,7 @@ class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin
         currentMood = mood;
         isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         currentMood = '🙂 Neutral';
         isLoading = false;
@@ -83,54 +79,44 @@ class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin
   Future<void> selectCategory(String category) async {
     setState(() {
       selectedCategory = category;
-      tabController = TabController(length: moods.length, vsync: this);
       isLoading = true;
     });
 
-    // Scroll to detected mood
-    final moodIndex = moods.indexOf(currentMood);
-    if (moodIndex != -1 && tabController != null) {
-      tabController!.index = moodIndex;
-    }
-
-    // Fetch music dynamically from AI
     final list = await ai.getMusicForMood(currentMood, category);
 
     setState(() {
       musicList = list;
       isLoading = false;
     });
+
+    if (musicList.isNotEmpty) {
+      _youtubeController = YoutubePlayerController(
+        initialVideoId: YoutubePlayer.convertUrlToId(musicList[0])!,
+        flags: const YoutubePlayerFlags(
+          autoPlay: false,
+          mute: false,
+        ),
+      );
+    }
   }
 
   void goBackToCategories() {
     setState(() {
       selectedCategory = null;
       musicList = [];
-      tabController?.dispose();
-      tabController = null;
+      _youtubeController?.dispose();
+      _youtubeController = null;
     });
-  }
-
-  Future<void> _openMusic(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open the link.")),
-        );
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
+    final bgColor = isDark ? Colors.black : const Color(0xFFF6F7FB);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Listen to Music"),
+        title: const Text("NeuroHelp Music"),
         backgroundColor: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
         leading: selectedCategory != null
             ? IconButton(
@@ -146,16 +132,18 @@ class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin
           ),
         ],
       ),
-      backgroundColor: isDark ? Colors.black : Colors.white,
+      backgroundColor: bgColor,
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Colors.deepPurple))
           : selectedCategory == null
           ? Padding(
         padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: categories.map((cat) {
+        child: ListView.builder(
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final cat = categories[index];
             return Card(
-              color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+              color: categoryColors[index],
               margin: const EdgeInsets.symmetric(vertical: 6),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -163,8 +151,7 @@ class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin
                 title: Text(
                   cat,
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold),
+                      color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
                   "Mood detected: $currentMood",
@@ -173,62 +160,46 @@ class _MusicScreenState extends State<MusicScreen> with TickerProviderStateMixin
                 onTap: () => selectCategory(cat),
               ),
             );
-          }).toList(),
+          },
         ),
       )
           : Column(
         children: [
-          TabBar(
-            controller: tabController,
-            isScrollable: true,
-            indicatorColor: Colors.white,
-            tabs: moods.map((m) => Tab(text: m)).toList(),
-          ),
           Expanded(
-            child: TabBarView(
-              controller: tabController,
-              children: moods.map((m) {
-                return FutureBuilder<List<String>>(
-                  future: ai.getMusicForMood(m, selectedCategory!),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final list = snapshot.data!;
-                    if (list.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No music found for $m",
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black54,
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: list.length,
-                      itemBuilder: (context, index) {
-                        final url = list[index];
-                        return Card(
-                          color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            leading: const Icon(Icons.music_note, color: Colors.white),
-                            title: Text(
-                              "Song ${index + 1}",
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            trailing: const Icon(Icons.open_in_new, color: Colors.white),
-                            onTap: () => _openMusic(url),
-                          ),
-                        );
-                      },
-                    );
-                  },
+            child: musicList.isEmpty
+                ? Center(
+              child: Text(
+                "No music found for $currentMood",
+                style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 16),
+              ),
+            )
+                : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: musicList.length,
+              itemBuilder: (context, index) {
+                final url = musicList[index];
+                final videoId = YoutubePlayer.convertUrlToId(url);
+                if (videoId == null) return const SizedBox();
+                return Card(
+                  color: Colors.deepPurple.shade50,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  child: YoutubePlayer(
+                    controller: YoutubePlayerController(
+                      initialVideoId: videoId,
+                      flags: const YoutubePlayerFlags(
+                        autoPlay: false,
+                        mute: false,
+                      ),
+                    ),
+                    showVideoProgressIndicator: true,
+                    progressIndicatorColor: Colors.deepPurple,
+                  ),
                 );
-              }).toList(),
+              },
             ),
           ),
         ],

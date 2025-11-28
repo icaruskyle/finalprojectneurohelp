@@ -276,7 +276,9 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
   // ---------------- Suicidal Detection ----------------
   bool _detectSuicidalRisk(String text) {
     final lower = text.toLowerCase();
+
     final critical = [
+      // English
       "i want to die",
       "i want to kill myself",
       "i'm going to kill myself",
@@ -297,13 +299,23 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       "thoughts of killing myself",
       "goodbye forever",
       "no reason to live",
-      "die"
+      "die",
+
+      // Filipino
+      "gusto ko magpakamatay",
+      "magpapakamatay ako",
+      "pagod na ako",
+      "ayoko na",
+      "wala na akong pag asa",
+      "wala nang pag asa",
     ];
+
     for (final p in critical) {
       if (lower.contains(p)) return true;
     }
     return false;
   }
+
 
   @override
   Widget build(BuildContext context) {

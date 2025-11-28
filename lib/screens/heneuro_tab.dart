@@ -174,10 +174,11 @@ class _HeneuroTabState extends State<HeneuroTab>
 
     String reply = '';
     try {
+      // Detect suicidal risk first
       if (ai.detectSuicidalRisk(userInput)) {
-        reply =
-        "⚠️ It seems you may be at risk. Please consider reaching out for help immediately.";
+        reply = await ai.getAIResponse(userInput);
       } else {
+        // Use improved AI mood + response
         reply = await ai
             .getAIResponse(userInput)
             .timeout(Duration(seconds: 10), onTimeout: () {
@@ -186,7 +187,7 @@ class _HeneuroTabState extends State<HeneuroTab>
       }
     } catch (e) {
       reply =
-      "⚠️ Henuero is currently unavailable. Please try again later."; // handles 503
+      "⚠️ Henuero is currently unavailable. Please try again later.";
       print("AI Error: $e");
     }
 
@@ -264,8 +265,7 @@ class _HeneuroTabState extends State<HeneuroTab>
           if (isSidebarOpen)
             Container(
               width: 270,
-              color:
-              widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
+              color: widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
               child: Column(
                 children: [
                   Padding(
@@ -403,7 +403,9 @@ class _HeneuroTabState extends State<HeneuroTab>
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                msg["time"] != null ? formatTime(msg["time"]!) : "",
+                                msg["time"] != null
+                                    ? formatTime(msg["time"]!)
+                                    : "",
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: isUser
@@ -444,7 +446,8 @@ class _HeneuroTabState extends State<HeneuroTab>
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: _isLoading ? null : _sendMessage,
-                        icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                        icon:
+                        const Icon(Icons.send, color: Colors.white, size: 20),
                         label: const Text("Send",
                             style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
