@@ -90,13 +90,17 @@ class _MusicScreenState extends State<MusicScreen> {
     });
 
     if (musicList.isNotEmpty) {
-      _youtubeController = YoutubePlayerController(
-        initialVideoId: YoutubePlayer.convertUrlToId(musicList[0])!,
-        flags: const YoutubePlayerFlags(
-          autoPlay: false,
-          mute: false,
-        ),
-      );
+      final videoId = YoutubePlayer.convertUrlToId(musicList[0]);
+      if (videoId != null) {
+        _youtubeController?.dispose();
+        _youtubeController = YoutubePlayerController(
+          initialVideoId: videoId,
+          flags: const YoutubePlayerFlags(
+            autoPlay: false,
+            mute: false,
+          ),
+        );
+      }
     }
   }
 

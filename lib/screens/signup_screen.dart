@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../notification_service.dart'; // <-- import NotificationService
 import 'login_screen.dart';
 
@@ -30,7 +29,6 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscureConfirm = true;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
   final NotificationService _notificationService = NotificationService();
 
   // ------------------ Email/Password Signup ------------------
@@ -38,12 +36,18 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_isAgreed) {
-      _showSnackBar("Please agree to the Privacy Policy and Terms.", Colors.red);
+      await _notificationService.showNotification(
+        title: "Agreement Required",
+        body: "Please agree to the Privacy Policy and Terms.",
+      );
       return;
     }
 
     if (passwordController.text.trim() != confirmController.text.trim()) {
-      _showSnackBar("Passwords do not match.", Colors.redAccent);
+      await _notificationService.showNotification(
+        title: "Password Mismatch",
+        body: "Passwords do not match.",
+      );
       return;
     }
 
@@ -57,13 +61,15 @@ class _SignupScreenState extends State<SignupScreen> {
           .get();
 
       if (existing.docs.isNotEmpty) {
-        _showSnackBar("Username already exists!", Colors.redAccent);
+        await _notificationService.showNotification(
+          title: "Username Taken",
+          body: "Username already exists!",
+        );
         setState(() => _isLoading = false);
         return;
       }
 
-      UserCredential userCredential =
-      await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
@@ -71,14 +77,11 @@ class _SignupScreenState extends State<SignupScreen> {
       final user = userCredential.user;
 
       if (user != null) {
-        // ✅ Send Firebase verification email
+        // Send Firebase verification email
         await user.sendEmailVerification();
 
-        // ✅ Store user in Firestore
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({
+        // Store user in Firestore
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fullName': fullController.text.trim(),
           'username': usernameController.text.trim().toLowerCase(),
           'email': emailController.text.trim(),
@@ -89,17 +92,14 @@ class _SignupScreenState extends State<SignupScreen> {
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        // ✅ Send device notification immediately
+        // Send device notification
         await _notificationService.showNotification(
           title: "Welcome to NeuroHelp 💜",
           body:
-          "Hi ${fullController.text.trim()}, your account has been created!",
+          "Hi ${fullController.text.trim()}, your account has been created! Please verify your email before logging in.",
         );
 
-        _showSnackBar(
-            "Account created! Please verify your email before logging in.",
-            Colors.green);
-
+        if (!mounted) return;
         await Future.delayed(const Duration(seconds: 1));
         Navigator.pushReplacement(
           context,
@@ -110,82 +110,19 @@ class _SignupScreenState extends State<SignupScreen> {
       String message = "Error creating account";
       if (e.code == 'email-already-in-use') message = "Email already in use!";
       if (e.code == 'weak-password') message = "Password is too weak!";
-      _showSnackBar(message, Colors.redAccent);
-    } catch (e) {
-      _showSnackBar("Error: $e", Colors.redAccent);
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
 
-  // ------------------ Google Signup ------------------
-  Future<void> _signUpWithGoogle() async {
-    setState(() => _isLoading = true);
-    try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return;
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-        accessToken: googleAuth.accessToken,
-      );
-
-      UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
-
-      final user = userCredential.user;
-      if (user == null) return;
-
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (!userDoc.exists) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({
-          'fullName': user.displayName ?? '',
-          'username': (user.displayName ?? user.uid ?? '')
-              .replaceAll(' ', '')
-              .toLowerCase(),
-          'email': user.email ?? '',
-          'birthday': '',
-          'gender': '',
-          'contactNumber': '',
-          'agreedToTerms': true,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // ✅ Show device notification for Google signup
       await _notificationService.showNotification(
-        title: "Welcome to NeuroHelp 💜",
-        body: "Hi ${user.displayName ?? 'User'}, your account is ready!",
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        title: "Signup Failed",
+        body: message,
       );
     } catch (e) {
-      _showSnackBar("Google Sign-In failed: $e", Colors.redAccent);
+      await _notificationService.showNotification(
+        title: "Signup Failed",
+        body: e.toString(),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   // ------------------ UI & Helper Widgets ------------------
@@ -238,7 +175,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         }),
                     const SizedBox(height: 16),
                     _buildTextField(emailController, "Email", Icons.email,
-                        keyboardType: TextInputType.emailAddress, validator: (value) {
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
                           if (value == null || value.isEmpty) return "Please enter your email";
                           if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                             return "Enter a valid email address";
@@ -298,33 +236,14 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isAgreed ? Colors.deepPurple : Colors.grey,
                         foregroundColor: Colors.white,
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text("Sign Up",
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text("Or continue with",
-                        style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _signUpWithGoogle,
-                      icon: const Icon(Icons.g_mobiledata, color: Colors.red, size: 30),
-                      label: const Text("Google"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 40, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 20),
                     TextButton(

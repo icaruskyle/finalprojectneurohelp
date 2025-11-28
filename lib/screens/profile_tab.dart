@@ -48,7 +48,6 @@ class _ProfileTabState extends State<ProfileTab> {
     Navigator.pop(context);
   }
 
-
   void _showAvatarPicker(BuildContext context) {
     final avatarPaths = [
       'assets/avatars/avatar1.png',
@@ -82,8 +81,6 @@ class _ProfileTabState extends State<ProfileTab> {
       'assets/avatars/26v.png',
       'assets/avatars/27v.png',
       'assets/avatars/avatar4.png',
-
-
     ];
 
     showDialog(

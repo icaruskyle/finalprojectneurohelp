@@ -16,28 +16,54 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  void _showTopNotification(String message, {bool isError = false}) {
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 20,
+        right: 20,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(12),
+          color: isError ? Colors.red[400] : Colors.deepPurple[400],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Automatically remove after 3 seconds
+    Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
+  }
+
   Future<void> _submitFeedback() async {
     final user = _auth.currentUser;
     final feedbackText = _feedbackController.text.trim();
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ You must be logged in to submit feedback.")),
-      );
+      _showTopNotification("⚠️ You must be logged in to submit feedback.", isError: true);
       return;
     }
 
     if (feedbackText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠️ Please enter your feedback.")),
-      );
+      _showTopNotification("⚠️ Please enter your feedback.", isError: true);
       return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
-      // Store feedback under users/{uid}/feedback
       await _firestore
           .collection('users')
           .doc(user.uid)
@@ -47,14 +73,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Thank you for your feedback!")),
-      );
+      _showTopNotification("✅ Thank you for your feedback!");
       _feedbackController.clear();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Failed to submit feedback: $e")),
-      );
+      _showTopNotification("❌ Failed to submit feedback: $e", isError: true);
     } finally {
       setState(() => _isSubmitting = false);
     }
@@ -106,13 +128,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   ),
                 ),
                 child: _isSubmitting
-                    ? const CircularProgressIndicator(
-                  color: Colors.white,
-                )
-                    : const Text(
-                  "Submit",
-                  style: TextStyle(fontSize: 16),
-                ),
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Submit", style: TextStyle(fontSize: 16)),
               ),
             ),
           ],

@@ -1,14 +1,13 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class AIService {
-  static const apiKey = 'AIzaSyBXKzJJPcgK0uYNwf9tpdlcJPw26JvVi2Q';
+  static const apiKey = 'AIzaSyBxxpVkGAn1saQCtf505UU01BJGv-2c5QI';
 
   final GenerativeModel _model = GenerativeModel(
     model: 'gemini-2.5-flash',
     apiKey: apiKey,
   );
 
-  /// Expanded mood list
   final List<String> moods = [
     "😊 Happy", "😇 Grateful", "😌 Content", "😎 Confident", "🥳 Excited",
     "😚 Loved", "🤗 Hopeful", "🤩 Inspired", "😋 Playful", "🤠 Cheerful",
@@ -43,39 +42,38 @@ class AIService {
   /// Predict mood
   Future<String> predictMood(String userText) async {
     try {
-      if (detectSuicidalRisk(userText)) {
-        return "⚠️ Suicidal/Warning";
-      }
+      if (detectSuicidalRisk(userText)) return "⚠️ Suicidal/Warning";
 
       final prompt = """
-    The user wrote: "$userText"
-    The text may be in any language, including Tagalog. 
-    Detect the mood based on the text and pick the closest mood from the following list: ${moods.join(", ")}.
-    Reply ONLY with the mood exactly as it appears in the list.
-    """;
+      The user wrote: "$userText"
+      The text may be in any language. Detect the mood based on the text and pick the closest mood from the following list: ${moods.join(", ")}.
+      Reply ONLY with the mood exactly as it appears in the list.
+      """;
 
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);
-
       final aiText = response.text?.trim() ?? "";
-      if (moods.contains(aiText)) return aiText;
-
-      return "🙂 Neutral";
+      return moods.contains(aiText) ? aiText : "🙂 Neutral";
     } catch (e) {
       return "🙂 Neutral";
     }
   }
 
-  /// Chatbot conversational reply
-  Future<String> getAIResponse(String userText) async {
+  /// Chatbot conversational reply with context
+  Future<String> getAIResponse(String conversationContext) async {
     try {
-      if (detectSuicidalRisk(userText)) {
-        return "⚠️ Your message suggests you may be at risk. Please consider reaching out for help immediately.";
+      if (detectSuicidalRisk(conversationContext)) {
+        return "⚠️ Your messages suggest you may be at risk. Please consider reaching out for help immediately.";
       }
 
       final prompt = """
-      You are Henuero, a kind and friendly AI chatbot. Respond to the user conversationally.
-      User said: "$userText"
+      You are Henuero, a kind and friendly AI chatbot. 
+      Engage in a continuous conversation with the user. 
+      Respond naturally, considering all previous messages below:
+
+      $conversationContext
+
+      Reply as Henuero, be empathetic, clear, and concise.
       """;
 
       final content = [Content.text(prompt)];
@@ -91,23 +89,19 @@ class AIService {
   Future<List<String>> getMusicForMood(String mood, String category) async {
     try {
       if (detectSuicidalRisk(mood)) {
-        // Return crisis resources if suicidal risk is detected
         return [
           "https://www.iasp.info/resources/Crisis-Centres/",
           "https://suicidepreventionlifeline.org/"
         ];
       }
 
-      // Prompt AI to suggest 3-5 YouTube music/podcast links per mood
       final prompt = """
       Provide a list of 3-5 YouTube links for $category suitable for someone feeling $mood.
-      Only give the links, no descriptions or text.
+      Only give the links, no descriptions or extra text.
       """;
 
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);
-
-      // Extract URLs from AI response
       final urls = RegExp(r'(https?://[^\s]+)').allMatches(response.text ?? "")
           .map((m) => m.group(0)!)
           .toList();

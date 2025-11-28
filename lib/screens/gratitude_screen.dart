@@ -1,4 +1,3 @@
-// gratitude_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,10 +15,9 @@ class GratitudeScreen extends StatefulWidget {
 class _GratitudeScreenState extends State<GratitudeScreen> {
   final TextEditingController _controller = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
   FlutterLocalNotificationsPlugin();
 
-  List<String> gratitudeList = [];
   late String uid;
 
   @override
@@ -28,39 +26,32 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       uid = user.uid;
-      _loadGratitudeList();
-      _initNotification();
+      _initNotifications();
     }
   }
 
   // ---------- Initialize Notifications ----------
-  void _initNotification() async {
+  void _initNotifications() async {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Manila'));
 
-    const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    final settings = InitializationSettings(android: androidSettings);
 
-    final InitializationSettings initializationSettings =
-    InitializationSettings(android: initializationSettingsAndroid);
-
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await _notificationsPlugin.initialize(settings);
 
     _scheduleDailyReminder();
   }
 
   void _scheduleDailyReminder() async {
     final now = tz.TZDateTime.now(tz.local);
-    final scheduledTime =
-    tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
+    final scheduledTime = tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
+    await _notificationsPlugin.zonedSchedule(
       0,
       '🌸 Daily Gratitude Reminder',
       'Take a moment to write your 3 gratitude items today!',
-      scheduledTime.isAfter(now)
-          ? scheduledTime
-          : scheduledTime.add(const Duration(days: 1)),
+      scheduledTime.isAfter(now) ? scheduledTime : scheduledTime.add(const Duration(days: 1)),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'gratitude_channel',
@@ -71,32 +62,13 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
         ),
       ),
       androidAllowWhileIdle: true,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  // ---------- Load Gratitude List from Firestore ----------
-  void _loadGratitudeList() async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('gratitude')
-        .orderBy('timestamp', descending: true)
-        .get();
-
-    setState(() {
-      gratitudeList =
-          snapshot.docs.map((doc) => doc['text'].toString()).toList();
-    });
-  }
-
-  // ---------- Add Gratitude ----------
-  void addGratitude() async {
-    if (_controller.text.isEmpty) return;
-
-    final text = _controller.text;
+  Future<void> addGratitude(String text) async {
+    if (text.isEmpty) return;
     _controller.clear();
 
     await _firestore
@@ -105,28 +77,42 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
         .collection('gratitude')
         .add({'text': text, 'timestamp': FieldValue.serverTimestamp()});
 
-    setState(() {
-      gratitudeList.insert(0, text);
-    });
+    _showTopNotification("✅ Gratitude added!");
   }
 
-  // ---------- Delete Gratitude ----------
-  void deleteGratitude(int index) async {
-    final query = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('gratitude')
-        .where('text', isEqualTo: gratitudeList[index])
-        .limit(1)
-        .get();
+  Future<void> deleteGratitude(String docId) async {
+    await _firestore.collection('users').doc(uid).collection('gratitude').doc(docId).delete();
+    _showTopNotification("🗑️ Gratitude deleted!", isError: true);
+  }
 
-    if (query.docs.isNotEmpty) {
-      await query.docs.first.reference.delete();
-    }
+  // ---------- Top Notification ----------
+  void _showTopNotification(String message, {bool isError = false}) {
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
 
-    setState(() {
-      gratitudeList.removeAt(index);
-    });
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 20,
+        right: 20,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(12),
+          color: isError ? Colors.red[400] : Colors.deepPurple[400],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
   }
 
   @override
@@ -169,13 +155,14 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
-                    onPressed: addGratitude,
+                    onPressed: () => addGratitude(_controller.text),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.deepPurple,
@@ -188,35 +175,54 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: gratitudeList.isEmpty
-                    ? const Center(
-                  child: Text(
-                    "No gratitude items yet.",
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                )
-                    : ListView.builder(
-                  itemCount: gratitudeList.length,
-                  itemBuilder: (context, index) {
-                    return Dismissible(
-                      key: Key(gratitudeList[index]),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (_) => deleteGratitude(index),
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        color: Colors.redAccent,
-                        child: const Icon(Icons.delete,
-                            color: Colors.white),
-                      ),
-                      child: Card(
-                        color: Colors.white.withOpacity(0.9),
-                        child: ListTile(
-                          leading: const Icon(Icons.favorite,
-                              color: Colors.deepPurple),
-                          title: Text(gratitudeList[index]),
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('users')
+                      .doc(uid)
+                      .collection('gratitude')
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          "No gratitude items yet.",
+                          style: TextStyle(color: Colors.white70),
                         ),
-                      ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
+                        final text = doc['text'] ?? '';
+                        return Dismissible(
+                          key: Key(doc.id),
+                          direction: DismissDirection.endToStart,
+                          onDismissed: (_) => deleteGratitude(doc.id),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: Colors.redAccent,
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          child: Card(
+                            color: Colors.white.withOpacity(0.9),
+                            child: ListTile(
+                              leading: const Icon(Icons.favorite, color: Colors.deepPurple),
+                              title: Text(text),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),

@@ -32,7 +32,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   void _loadUserInfo() async {
     final user = _auth.currentUser;
     if (user != null) {
-      // Try to get document by UID
       final doc = await _firestore.collection('users').doc(user.uid).get();
 
       if (doc.exists) {
@@ -45,11 +44,10 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           gender = data['gender'];
         });
       } else {
-        // If no document with UID, try to find by email
-        final query = await _firestore.collection('users')
+        final query = await _firestore
+            .collection('users')
             .where('email', isEqualTo: user.email)
             .get();
-
         if (query.docs.isNotEmpty) {
           final data = query.docs.first.data();
           setState(() {
@@ -64,6 +62,36 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     }
   }
 
+  // Show top notification overlay
+  void _showNotification(String message) {
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 20,
+        right: 20,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.deepPurple,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
+  }
+
   // Save user info to Firestore
   void _saveUserInfo() async {
     final user = _auth.currentUser;
@@ -71,7 +99,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
       if (userDoc.exists) {
-        // Update existing document
         await _firestore.collection('users').doc(user.uid).update({
           'fullName': _fullNameController.text.trim(),
           'username': _usernameController.text.trim(),
@@ -80,23 +107,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           'gender': gender,
         });
       } else {
-        // If no document exists with UID, create one
         await _firestore.collection('users').doc(user.uid).set({
           'fullName': _fullNameController.text.trim(),
           'username': _usernameController.text.trim(),
           'birthday': _birthdateController.text.trim(),
           'contact': _contactController.text.trim(),
           'gender': gender,
-          'email': user.email, // keep email saved but not editable
+          'email': user.email,
         });
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Personal information saved successfully!"),
-          backgroundColor: isDarkMode ? Colors.purpleAccent : Colors.deepPurple,
-        ),
-      );
+      _showNotification("✅ Personal information saved successfully!");
     }
   }
 

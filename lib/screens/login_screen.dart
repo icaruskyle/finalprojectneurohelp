@@ -16,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  String? errorMessage;
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -25,17 +24,15 @@ class _LoginScreenState extends State<LoginScreen> {
     String password = passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      _showSnackBar("Please enter both username and password", Colors.red);
+      _showNotify("Please enter both username and password", Colors.red);
       return;
     }
 
     setState(() {
       _isLoading = true;
-      errorMessage = null;
     });
 
     try {
-      // 🔹 Get email from username in Firestore
       final QuerySnapshot result = await FirebaseFirestore.instance
           .collection('users')
           .where('username', isEqualTo: username)
@@ -43,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
           .get();
 
       if (result.docs.isEmpty) {
-        _showSnackBar("User not found", Colors.redAccent);
+        _showNotify("User not found", Colors.redAccent);
         setState(() => _isLoading = false);
         return;
       }
@@ -54,14 +51,12 @@ class _LoginScreenState extends State<LoginScreen> {
           ? userDoc['is2FAEnabled']
           : false;
 
-      // 🔹 Sign in with Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: userEmail, password: password);
 
       final user = userCredential.user;
 
       if (user != null) {
-        // 🔹 Check if email is verified
         if (!user.emailVerified) {
           _showVerificationDialog(user);
           setState(() => _isLoading = false);
@@ -69,25 +64,24 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (is2FAEnabled) {
-          _showSnackBar("Login successful with 2FA! 🎉", Colors.green);
+          _showNotify("Login successful with 2FA! 🎉", Colors.green);
         } else {
-          _showSnackBar("Login successful! 🎉", Colors.green);
+          _showNotify("Login successful! 🎉", Colors.green);
         }
 
         await Future.delayed(const Duration(milliseconds: 800));
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-              builder: (_) => DashboardScreen(username: username)),
+          MaterialPageRoute(builder: (_) => DashboardScreen(username: username)),
         );
       }
     } on FirebaseAuthException catch (e) {
       String message = "Login failed";
       if (e.code == 'wrong-password') message = "Invalid password";
       if (e.code == 'user-not-found') message = "User not found";
-      _showSnackBar(message, Colors.redAccent);
+      _showNotify(message, Colors.redAccent);
     } catch (e) {
-      _showSnackBar("Login failed: $e", Colors.redAccent);
+      _showNotify("Login failed: $e", Colors.redAccent);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -105,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextButton(
             onPressed: () async {
               await user.sendEmailVerification();
-              _showSnackBar("Verification email resent! 📧", Colors.green);
+              _showNotify("Verification email resent! 📧", Colors.green);
             },
             child: const Text("Resend Email"),
           ),
@@ -118,15 +112,42 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  void _showNotify(String message, Color color) {
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 6,
+                  offset: Offset(0, 3),
+                )
+              ],
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
       ),
     );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
   }
 
   @override
@@ -179,17 +200,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 30),
                   TextField(
                     controller: usernameController,
-                    style:
-                    TextStyle(color: isDark ? Colors.white : Colors.black),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       labelText: "Username",
                       labelStyle: TextStyle(
                         color: isDark ? Colors.purple[200] : Colors.deepPurple,
                       ),
                       filled: true,
-                      fillColor: isDark
-                          ? Colors.deepPurple.shade800
-                          : Colors.deepPurple.shade50,
+                      fillColor:
+                      isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -200,26 +219,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: passwordController,
                     obscureText: _obscurePassword,
-                    style:
-                    TextStyle(color: isDark ? Colors.white : Colors.black),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       labelText: "Password",
                       labelStyle: TextStyle(
                         color: isDark ? Colors.purple[200] : Colors.deepPurple,
                       ),
                       filled: true,
-                      fillColor: isDark
-                          ? Colors.deepPurple.shade800
-                          : Colors.deepPurple.shade50,
+                      fillColor:
+                      isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
                           color: isDark ? Colors.white70 : Colors.grey,
                         ),
                         onPressed: () =>
@@ -246,9 +261,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  if (errorMessage != null)
-                    Text(errorMessage!,
-                        style: const TextStyle(color: Colors.red)),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
@@ -281,8 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (_) => const SignupScreen()),
+                            MaterialPageRoute(builder: (_) => const SignupScreen()),
                           );
                         },
                         child: const Text(

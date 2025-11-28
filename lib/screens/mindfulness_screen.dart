@@ -15,7 +15,6 @@ class MindfulnessScreen extends StatefulWidget {
 class _MindfulnessScreenState extends State<MindfulnessScreen>
     with SingleTickerProviderStateMixin {
   int step = 0;
-  int sessionCount = 0; // user's completed sessions
   Timer? _timer;
   late AnimationController _particleController;
 
@@ -30,11 +29,15 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
 
   final List<Offset> _particles = [];
   final random = Random();
+  late String uid;
 
   @override
   void initState() {
     super.initState();
-    _fetchSessionCount();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      uid = user.uid;
+    }
 
     // particle animation
     for (int i = 0; i < 50; i++) {
@@ -45,19 +48,13 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
       ..repeat();
   }
 
-  Future<void> _fetchSessionCount() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final uid = user.uid;
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('mindfulness_sessions')
-          .get();
-      setState(() {
-        sessionCount = snapshot.docs.length;
-      });
-    }
+  Future<int> _getSessionCount() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('mindfulness_sessions')
+        .get();
+    return snapshot.docs.length;
   }
 
   void startMindfulness() {
@@ -65,14 +62,14 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
     _timer?.cancel();
     DateTime startTime = DateTime.now();
 
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (step < steps.length - 1) {
         setState(() => step++);
       } else {
         timer.cancel();
-        _saveSessionToFirebase(
-            duration: DateTime.now().difference(startTime).inSeconds);
-        setState(() => sessionCount++);
+        final duration = DateTime.now().difference(startTime).inSeconds;
+        await _saveSessionToFirebase(duration: duration);
+        _showTopNotification("🌿 Mindfulness session completed!");
       }
     });
   }
@@ -83,18 +80,44 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
   }
 
   Future<void> _saveSessionToFirebase({required int duration}) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final uid = user.uid;
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('mindfulness_sessions')
-          .add({
-        'timestamp': DateTime.now(),
-        'duration': duration,
-      });
-    }
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('mindfulness_sessions')
+        .add({
+      'timestamp': DateTime.now(),
+      'duration': duration,
+    });
+    setState(() {}); // trigger rebuild for updated session count
+  }
+
+  void _showTopNotification(String message) {
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 20,
+        right: 20,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.deepPurple[400],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
   }
 
   @override
@@ -133,8 +156,8 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
               animation: _particleController,
               builder: (context, child) {
                 return CustomPaint(
-                  painter:
-                  ParticlePainter(_particles, _particleController.value, isDark),
+                  painter: ParticlePainter(
+                      _particles, _particleController.value, isDark),
                   size: MediaQuery.of(context).size,
                 );
               },
@@ -145,22 +168,27 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Session counter
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.deepPurple.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        "Sessions Completed: $sessionCount",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+                    FutureBuilder<int>(
+                      future: _getSessionCount(),
+                      builder: (context, snapshot) {
+                        final count = snapshot.data ?? 0;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            "Sessions Completed: $count",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
                     AnimatedContainer(
@@ -246,8 +274,7 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color =
-      (isDark ? Colors.purpleAccent : Colors.white70).withOpacity(0.3)
+      ..color = (isDark ? Colors.purpleAccent : Colors.white70).withOpacity(0.3)
       ..style = PaintingStyle.fill;
 
     for (var p in particles) {

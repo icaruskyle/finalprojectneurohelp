@@ -173,21 +173,18 @@ class _HeneuroTabState extends State<HeneuroTab>
     _controller.clear();
 
     String reply = '';
+
     try {
-      // Detect suicidal risk first
-      if (ai.detectSuicidalRisk(userInput)) {
-        reply = await ai.getAIResponse(userInput);
-      } else {
-        // Use improved AI mood + response
-        reply = await ai
-            .getAIResponse(userInput)
-            .timeout(Duration(seconds: 10), onTimeout: () {
-          return "⚠️ Henuero took too long to respond. Please try again later.";
-        });
-      }
+      final conversationContext = messages
+          .map((msg) => "${msg['sender']}: ${msg['text']}")
+          .join("\n");
+
+      reply = await ai.getAIResponse(conversationContext)
+          .timeout(const Duration(seconds: 15), onTimeout: () {
+        return "⚠️ Henuero took too long to respond. Please try again later.";
+      });
     } catch (e) {
-      reply =
-      "⚠️ Henuero is currently unavailable. Please try again later.";
+      reply = "⚠️ Henuero is currently unavailable. Please try again later.";
       print("AI Error: $e");
     }
 
@@ -261,96 +258,117 @@ class _HeneuroTabState extends State<HeneuroTab>
       backgroundColor: bg,
       body: Row(
         children: [
-          // Sidebar
-          if (isSidebarOpen)
-            Container(
-              width: 270,
-              color: widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
-              child: Column(
-                children: [
-                  Padding(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Chat Sessions',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: Colors.deepPurple),
-                          tooltip: "Session",
-                          onPressed: createNewSession,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                          labelText: 'Search session', border: OutlineInputBorder()),
-                      onChanged: (val) => setState(() => searchQuery = val),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredSessions.length,
-                      itemBuilder: (context, index) {
-                        final session = filteredSessions[index];
-                        final createdAt = DateTime.parse(
-                            session['created_at'] ?? DateTime.now().toString());
-                        final sessionId = session['id'];
-                        final sessionName = session['name'];
-                        final lastMsg = session['last_message'] ?? '';
-
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          title: Text(
-                            sessionName,
-                            style: TextStyle(
-                              color: sessionId == currentSessionId
-                                  ? Colors.deepPurple
-                                  : text,
-                              fontWeight: FontWeight.bold,
+          // Animated Sidebar
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            width: isSidebarOpen ? 270 : 0,
+            child: AnimatedOpacity(
+              opacity: isSidebarOpen ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                color:
+                widget.isDarkMode ? Colors.grey[900] : Colors.deepPurple.shade50,
+                child: Column(
+                  children: [
+                    // Header
+                    Padding(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      child: Row(
+                        children: [
+                          if (isSidebarOpen)
+                            const Expanded(
+                              child: Text(
+                                'Chat Sessions',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
                             ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                lastMsg.length > 30
-                                    ? "${lastMsg.substring(0, 30)}..."
-                                    : lastMsg,
-                                style: TextStyle(
-                                    fontSize: 12, color: text.withOpacity(0.7)),
-                              ),
-                              Text(
-                                DateFormat('MMM dd, yyyy – hh:mm a')
-                                    .format(createdAt),
-                                style: TextStyle(
-                                    fontSize: 11, color: text.withOpacity(0.5)),
-                              ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_forever,
-                                color: Colors.red, size: 20),
-                            onPressed: () => deleteSession(sessionId),
-                          ),
-                          onTap: () => openSession(sessionId),
-                        );
-                      },
+                          if (isSidebarOpen)
+                            IconButton(
+                              icon: const Icon(Icons.add, color: Colors.deepPurple),
+                              tooltip: "New Session",
+                              onPressed: createNewSession,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    // Search
+                    if (isSidebarOpen)
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            labelText: 'Search session',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (val) => setState(() => searchQuery = val),
+                        ),
+                      ),
+                    // Session List
+                    if (isSidebarOpen)
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: filteredSessions.length,
+                            itemBuilder: (context, index) {
+                              final session = filteredSessions[index];
+                              final createdAt = DateTime.parse(
+                                  session['created_at'] ?? DateTime.now().toString());
+                              final sessionId = session['id'];
+                              final sessionName = session['name'];
+                              final lastMsg = session['last_message'] ?? '';
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                title: Text(
+                                  sessionName,
+                                  style: TextStyle(
+                                    color: sessionId == currentSessionId
+                                        ? Colors.deepPurple
+                                        : text,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      lastMsg.length > 30
+                                          ? "${lastMsg.substring(0, 30)}..."
+                                          : lastMsg,
+                                      style: TextStyle(
+                                          fontSize: 12, color: text.withOpacity(0.7)),
+                                    ),
+                                    Text(
+                                      DateFormat('MMM dd, yyyy – hh:mm a')
+                                          .format(createdAt),
+                                      style: TextStyle(
+                                          fontSize: 11, color: text.withOpacity(0.5)),
+                                    ),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_forever,
+                                      color: Colors.red, size: 20),
+                                  onPressed: () => deleteSession(sessionId),
+                                ),
+                                onTap: () => openSession(sessionId),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
+          ),
 
           // Chat Panel
           Expanded(
@@ -375,51 +393,58 @@ class _HeneuroTabState extends State<HeneuroTab>
                       return Align(
                         alignment:
                         isUser ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.all(12),
+                        child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                            maxWidth: MediaQuery.of(context).size.width *
+                                (isSidebarOpen ? 0.55 : 0.75),
                           ),
-                          decoration: BoxDecoration(
-                            color: isUser
-                                ? Colors.deepPurple
-                                : _getAIBubbleColor(msg['text'] ?? ''),
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(12),
-                              topRight: const Radius.circular(12),
-                              bottomLeft: Radius.circular(isUser ? 12 : 0),
-                              bottomRight: Radius.circular(isUser ? 0 : 12),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isUser
+                                  ? Colors.deepPurple
+                                  : _getAIBubbleColor(msg['text'] ?? ''),
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(12),
+                                topRight: const Radius.circular(12),
+                                bottomLeft: Radius.circular(isUser ? 12 : 0),
+                                bottomRight: Radius.circular(isUser ? 0 : 12),
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                msg["text"] ?? "",
-                                style: TextStyle(
-                                    color: isUser ? Colors.white : text,
-                                    fontSize: 16),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                msg["time"] != null
-                                    ? formatTime(msg["time"]!)
-                                    : "",
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: isUser
-                                        ? Colors.white70
-                                        : text.withOpacity(0.7)),
-                              ),
-                            ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  msg["text"] ?? "",
+                                  style: TextStyle(
+                                      color: isUser
+                                          ? Colors.white
+                                          : widget.isDarkMode
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontSize: 16),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  msg["time"] != null ? formatTime(msg["time"]!) : "",
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: isUser
+                                          ? Colors.white70
+                                          : widget.isDarkMode
+                                          ? Colors.white60
+                                          : Colors.black54),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
                     },
                   ),
                 ),
-
+                // Input row (unchanged)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Row(
@@ -446,8 +471,7 @@ class _HeneuroTabState extends State<HeneuroTab>
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: _isLoading ? null : _sendMessage,
-                        icon:
-                        const Icon(Icons.send, color: Colors.white, size: 20),
+                        icon: const Icon(Icons.send, color: Colors.white, size: 20),
                         label: const Text("Send",
                             style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(

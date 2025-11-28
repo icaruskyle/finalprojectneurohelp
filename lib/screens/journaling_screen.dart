@@ -1,5 +1,6 @@
-// journaling_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class JournalingScreen extends StatefulWidget {
   const JournalingScreen({super.key});
@@ -10,28 +11,82 @@ class JournalingScreen extends StatefulWidget {
 
 class _JournalingScreenState extends State<JournalingScreen> {
   final TextEditingController _controller = TextEditingController();
-  String? savedNote;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late String uid;
 
-  void saveNote() {
-    setState(() {
-      savedNote = _controller.text;
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      uid = user.uid;
+    }
+  }
+
+  Future<void> saveNote() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    _controller.clear();
+
+    // Save note in Firestore
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('journals')
+        .add({
+      'text': text,
+      'timestamp': FieldValue.serverTimestamp(),
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Your journal entry has been saved 💜")),
+
+    _showTopNotification("✅ Your journal entry has been saved!");
+  }
+
+  // ---------- Top Notification ----------
+  void _showTopNotification(String message, {bool isError = false}) {
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 20,
+        right: 20,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(12),
+          color: isError ? Colors.red[400] : Colors.deepPurple[400],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
     );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Journaling"),
         backgroundColor: Colors.deepPurple,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.purpleAccent, Colors.deepPurple],
+            colors: isDarkMode
+                ? [Colors.deepPurple.shade800, Colors.black87]
+                : [Colors.purpleAccent, Colors.deepPurple],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -73,24 +128,54 @@ class _JournalingScreenState extends State<JournalingScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              if (savedNote != null)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("🗒 Your Saved Entry:",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text(savedNote!),
-                    ],
-                  ),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('users')
+                      .doc(uid)
+                      .collection('journals')
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          "No journal entries yet.",
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
+                        final text = doc['text'] ?? '';
+                        final timestamp = doc['timestamp'] != null
+                            ? (doc['timestamp'] as Timestamp).toDate()
+                            : DateTime.now();
+                        return Card(
+                          color: Colors.white.withOpacity(0.9),
+                          child: ListTile(
+                            title: Text(text),
+                            subtitle: Text(
+                              "${timestamp.day}/${timestamp.month}/${timestamp.year} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}",
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
+              ),
             ],
           ),
         ),
