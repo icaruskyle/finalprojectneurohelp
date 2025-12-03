@@ -96,7 +96,7 @@ class AIService {
       }
 
       final prompt = """
-      Provide a list of 3-5 YouTube links for $category suitable for someone feeling $mood.
+      Provide a list of 10 YouTube links for $category suitable for someone feeling $mood.
       Only give the links, no descriptions or extra text.
       """;
 

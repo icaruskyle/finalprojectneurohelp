@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../notification_service.dart'; // <-- import NotificationService
+import '../notification_service.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -28,10 +28,38 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
+  // Password Strength
+  String passwordStrength = "";
+  Color strengthColor = Colors.red;
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final NotificationService _notificationService = NotificationService();
 
-  // ------------------ Email/Password Signup ------------------
+  // ---------------- PASSWORD STRENGTH CHECKER ----------------
+  void checkPasswordStrength(String password) {
+    int strength = 0;
+
+    if (password.length >= 8) strength++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) strength++;
+    if (RegExp(r'[a-z]').hasMatch(password)) strength++;
+    if (RegExp(r'[0-9]').hasMatch(password)) strength++;
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) strength++;
+
+    setState(() {
+      if (strength <= 2) {
+        passwordStrength = "Weak";
+        strengthColor = Colors.red;
+      } else if (strength <= 4) {
+        passwordStrength = "Medium";
+        strengthColor = Colors.orange;
+      } else {
+        passwordStrength = "Strong";
+        strengthColor = Colors.green;
+      }
+    });
+  }
+
+  // ------------------ SIGN UP PROCESS ------------------
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -51,13 +79,30 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    final password = passwordController.text.trim();
+
+    // Final password validation
+    if (password.length < 8 ||
+        !RegExp(r'[a-z]').hasMatch(password) ||
+        !RegExp(r'[A-Z]').hasMatch(password) ||
+        !RegExp(r'[0-9]').hasMatch(password) ||
+        !RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) {
+      await _notificationService.showNotification(
+        title: "Weak Password",
+        body:
+        "Password must be 8+ characters with upper, lower, number & symbol.",
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
+      final usernameInput = usernameController.text.trim();
+
       final existing = await FirebaseFirestore.instance
           .collection('users')
-          .where('username',
-          isEqualTo: usernameController.text.trim().toLowerCase())
+          .where('username', isEqualTo: usernameInput)
           .get();
 
       if (existing.docs.isNotEmpty) {
@@ -71,19 +116,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        password: password,
       );
 
       final user = userCredential.user;
 
       if (user != null) {
-        // Send Firebase verification email
         await user.sendEmailVerification();
 
-        // Store user in Firestore
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fullName': fullController.text.trim(),
-          'username': usernameController.text.trim().toLowerCase(),
+          'username': usernameInput,
           'email': emailController.text.trim(),
           'birthday': birthController.text.trim(),
           'gender': gender ?? '',
@@ -92,15 +135,15 @@ class _SignupScreenState extends State<SignupScreen> {
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        // Send device notification
         await _notificationService.showNotification(
           title: "Welcome to NeuroHelp 💜",
           body:
-          "Hi ${fullController.text.trim()}, your account has been created! Please verify your email before logging in.",
+          "Hi ${fullController.text.trim()}, your account has been created! Please verify your email.",
         );
 
         if (!mounted) return;
         await Future.delayed(const Duration(seconds: 1));
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -125,7 +168,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  // ------------------ UI & Helper Widgets ------------------
+  // ------------------ UI ------------------
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -157,9 +200,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? Colors.white
-                            : Colors.deepPurple.shade800,
+                        color:
+                        isDark ? Colors.white : Colors.deepPurple.shade800,
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -170,19 +212,28 @@ class _SignupScreenState extends State<SignupScreen> {
                           if (value == null || value.isEmpty) {
                             return "Please enter a username";
                           }
-                          if (value.length < 3) return "Username must be at least 3 characters";
-                          return null;
-                        }),
-                    const SizedBox(height: 16),
-                    _buildTextField(emailController, "Email", Icons.email,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return "Please enter your email";
-                          if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                            return "Enter a valid email address";
+                          if (value.length < 3) {
+                            return "Username must be at least 3 characters";
                           }
                           return null;
                         }),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      emailController,
+                      "Email",
+                      Icons.email,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your email";
+                        }
+                        if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
+                          return "Enter a valid email address";
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: 16),
                     _buildBirthdayField(),
                     const SizedBox(height: 20),
@@ -195,28 +246,42 @@ class _SignupScreenState extends State<SignupScreen> {
                         DropdownMenuItem(value: "Other", child: Text("Other")),
                       ],
                       onChanged: (value) => setState(() => gender = value),
-                      validator: (value) => value == null ? "Please select gender" : null,
+                      validator: (value) =>
+                      value == null ? "Please select gender" : null,
                     ),
                     const SizedBox(height: 20),
-                    _buildTextField(numController, "Contact Number", Icons.phone,
-                        keyboardType: TextInputType.phone, validator: (value) {
-                          if (value == null || value.isEmpty) return "Please enter your contact number";
-                          if (!RegExp(r'^[0-9]{11}$').hasMatch(value)) {
-                            return "Contact number must be exactly 11 digits";
-                          }
-                          return null;
-                        }),
+                    _buildTextField(
+                      numController,
+                      "Contact Number",
+                      Icons.phone,
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your contact number";
+                        }
+                        if (!RegExp(r'^[0-9]{11}$').hasMatch(value)) {
+                          return "Contact number must be 11 digits";
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: 30),
+
+                    // PASSWORD FIELD WITH STRENGTH & CHECKLIST
                     _buildPasswordField(),
                     const SizedBox(height: 20),
+
+                    // CONFIRM PASSWORD
                     _buildConfirmPasswordField(),
                     const SizedBox(height: 20),
+
                     Row(
                       children: [
                         Checkbox(
                           value: _isAgreed,
                           activeColor: Colors.deepPurple,
-                          onChanged: (value) => setState(() => _isAgreed = value ?? false),
+                          onChanged: (value) =>
+                              setState(() => _isAgreed = value ?? false),
                         ),
                         const Expanded(
                           child: Text(
@@ -226,33 +291,45 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: (!_isAgreed || _isLoading)
                           ? null
                           : () {
-                        if (_formKey.currentState!.validate()) _registerUser();
+                        if (_formKey.currentState!.validate()) {
+                          _registerUser();
+                        }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isAgreed ? Colors.deepPurple : Colors.grey,
+                        backgroundColor:
+                        _isAgreed ? Colors.deepPurple : Colors.grey,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 100, vertical: 16),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Sign Up",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          ? const CircularProgressIndicator(
+                          color: Colors.white)
+                          : const Text(
+                        "Sign Up",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
                     ),
+
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () => Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                       ),
-                      child: const Text("Already have an account? Login",
-                          style: TextStyle(color: Colors.deepPurple)),
+                      child: const Text(
+                        "Already have an account? Login",
+                        style: TextStyle(color: Colors.deepPurple),
+                      ),
                     ),
                   ],
                 ),
@@ -264,7 +341,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // ------------------ Helper Fields ------------------
+  // ------------------ HELPER WIDGETS ------------------
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
@@ -275,15 +352,17 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon,
+  Widget _buildTextField(TextEditingController controller, String label,
+      IconData icon,
       {TextInputType keyboardType = TextInputType.text,
         String? Function(String?)? validator}) {
     return TextFormField(
       controller: controller,
-      decoration: _inputDecoration(label, icon),
       keyboardType: keyboardType,
+      decoration: _inputDecoration(label, icon),
       validator: validator ??
-              (value) => value == null || value.isEmpty ? "Please enter $label" : null,
+              (value) =>
+          value == null || value.isEmpty ? "Please enter $label" : null,
     );
   }
 
@@ -302,48 +381,156 @@ class _SignupScreenState extends State<SignupScreen> {
           lastDate: DateTime.now(),
         );
         if (pickedDate != null) {
-          setState(() {
-            birthController.text =
-            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-          });
+          birthController.text =
+          "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
         }
       },
-      validator: (value) =>
-      value == null || value.isEmpty ? "Please select your birthday" : null,
+      validator: (value) => value == null || value.isEmpty
+          ? "Please select your birthday"
+          : null,
     );
   }
 
+  // ------------------ PASSWORD FIELD UI ------------------
   Widget _buildPasswordField() {
-    return TextFormField(
-      controller: passwordController,
-      obscureText: _obscurePassword,
-      decoration: _inputDecoration("Password", Icons.lock).copyWith(
-        suffixIcon: IconButton(
-          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility,
-              color: Colors.grey),
-          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+    bool showPasswordUI = passwordController.text.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: passwordController,
+          obscureText: _obscurePassword,
+          onChanged: (value) {
+            checkPasswordStrength(value);
+            setState(() {});
+          },
+          decoration: _inputDecoration("Password", Icons.lock).copyWith(
+            suffixIcon: IconButton(
+              icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility),
+              color: Colors.grey,
+              onPressed: () {
+                setState(() => _obscurePassword = !_obscurePassword);
+              },
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return "Please enter a password";
+            }
+            if (value.length < 8) return "Password must be at least 8 characters";
+            if (!RegExp(r'[a-z]').hasMatch(value)) return "Must contain lowercase letter";
+            if (!RegExp(r'[A-Z]').hasMatch(value)) return "Must contain uppercase letter";
+            if (!RegExp(r'[0-9]').hasMatch(value)) return "Must contain a number";
+            if (!RegExp(r'[!@#$%^&*(),.?\":{}|<>]').hasMatch(value)) {
+              return "Must contain special symbol";
+            }
+            return null;
+          },
         ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) return "Please enter a password";
-        if (value.length < 6) return "Password must be at least 6 characters";
-        return null;
-      },
+
+        // SHOW NOTHING IF PASSWORD FIELD IS EMPTY
+        if (!showPasswordUI) const SizedBox.shrink(),
+
+        // SHOW ONLY WHEN TYPING
+        if (showPasswordUI) ...[
+          const SizedBox(height: 8),
+
+          // PROGRESS BAR
+          LinearProgressIndicator(
+            value: passwordStrength == "Weak"
+                ? 0.33
+                : passwordStrength == "Medium"
+                ? 0.66
+                : 1.0,
+            color: strengthColor,
+            backgroundColor: Colors.grey.shade300,
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(10),
+          ),
+
+          const SizedBox(height: 8),
+
+          // STRENGTH LABEL
+          Text(
+            "Strength: $passwordStrength",
+            style: TextStyle(
+              color: strengthColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // CHECKLIST REQUIREMENTS
+          _buildRequirementItem(
+            "At least 8 characters",
+            passwordController.text.length >= 8,
+          ),
+          _buildRequirementItem(
+            "Contains uppercase (A-Z)",
+            RegExp(r'[A-Z]').hasMatch(passwordController.text),
+          ),
+          _buildRequirementItem(
+            "Contains lowercase (a-z)",
+            RegExp(r'[a-z]').hasMatch(passwordController.text),
+          ),
+          _buildRequirementItem(
+            "Contains number (0-9)",
+            RegExp(r'[0-9]').hasMatch(passwordController.text),
+          ),
+          _buildRequirementItem(
+            "Contains special character",
+            RegExp(r'[!@#$%^&*(),.?\":{}|<>]').hasMatch(passwordController.text),
+          ),
+        ],
+      ],
     );
   }
 
+  // Checklist item widget
+  Widget _buildRequirementItem(String text, bool met) {
+    return Row(
+      children: [
+        Icon(
+          met ? Icons.check_circle : Icons.cancel,
+          color: met ? Colors.green : Colors.red,
+          size: 18,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            color: met ? Colors.green : Colors.red,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ------------------ CONFIRM PASSWORD ------------------
   Widget _buildConfirmPasswordField() {
     return TextFormField(
       controller: confirmController,
       obscureText: _obscureConfirm,
       decoration: _inputDecoration("Confirm Password", Icons.lock).copyWith(
         suffixIcon: IconButton(
-          icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility,
-              color: Colors.grey),
-          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+          icon: Icon(
+              _obscureConfirm ? Icons.visibility_off : Icons.visibility),
+          color: Colors.grey,
+          onPressed: () {
+            setState(() {
+              _obscureConfirm = !_obscureConfirm;
+            });
+          },
         ),
       ),
       validator: (value) {
+        if (value == null || value.isEmpty) {
+          return "Please confirm your password";
+        }
         if (value != passwordController.text) {
           return "Passwords do not match";
         }

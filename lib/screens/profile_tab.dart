@@ -8,6 +8,8 @@ import 'change_password_screen.dart';
 import 'terms_conditions_screen.dart';
 import 'feedback_screen.dart';
 import 'account_delete.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'welcome_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   final String username;
@@ -223,10 +225,14 @@ class _ProfileTabState extends State<ProfileTab> {
                     child: const Text("Cancel"),
                   ),
                   TextButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('username'); // remove saved username
+
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                             (route) => false,
                       );
                     },
@@ -235,7 +241,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 ],
               ),
             );
-          } else if (isDelete) {
+        } else if (isDelete) {
             AccountDeleteHelper.confirmAndDeleteAccount(context);
           } else if (screen != null) {
             Navigator.push(context, MaterialPageRoute(builder: (_) => screen));

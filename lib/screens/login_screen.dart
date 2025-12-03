@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dashboard_screen.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,9 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // 🔥 CASE-SENSITIVE FIRESTORE CHECK
       final QuerySnapshot result = await FirebaseFirestore.instance
           .collection('users')
-          .where('username', isEqualTo: username)
+          .where('username', isEqualTo: username) // <-- EXACT MATCH
           .limit(1)
           .get();
 
@@ -47,10 +50,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final userDoc = result.docs.first;
       final userEmail = userDoc['email'];
+
       final is2FAEnabled = userDoc.data().toString().contains('is2FAEnabled')
           ? userDoc['is2FAEnabled']
           : false;
 
+      // Firebase email+password login
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: userEmail, password: password);
 
@@ -69,10 +74,15 @@ class _LoginScreenState extends State<LoginScreen> {
           _showNotify("Login successful! 🎉", Colors.green);
         }
 
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('username', username);
+
         await Future.delayed(const Duration(milliseconds: 800));
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => DashboardScreen(username: username)),
+          MaterialPageRoute(
+              builder: (_) => DashboardScreen(username: username)),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -207,8 +217,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: isDark ? Colors.purple[200] : Colors.deepPurple,
                       ),
                       filled: true,
-                      fillColor:
-                      isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+                      fillColor: isDark
+                          ? Colors.deepPurple.shade800
+                          : Colors.deepPurple.shade50,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -226,8 +237,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: isDark ? Colors.purple[200] : Colors.deepPurple,
                       ),
                       filled: true,
-                      fillColor:
-                      isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
+                      fillColor: isDark
+                          ? Colors.deepPurple.shade800
+                          : Colors.deepPurple.shade50,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
