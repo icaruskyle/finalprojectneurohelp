@@ -11,7 +11,7 @@ import 'profile_tab.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ai_service.dart';
-import 'heneuro_tab.dart'; // ✅ import for AI chat tab
+import 'heneuro_tab.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -51,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() => _isDarkMode = !_isDarkMode);
   }
 
-  // ---------- THEME COLORS ----------
+  // THEME COLORS
   Color get primary => Colors.deepPurple;
   Color get background => _isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
   Color get cardColor => _isDarkMode ? const Color(0xFF2C2C2E) : Colors.white;
@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color get textSecondary => _isDarkMode ? Colors.white70 : Colors.black87;
   Color get accent => _isDarkMode ? Colors.purpleAccent : Colors.deepPurple;
 
-  // ---------- HOME TAB ----------
+  // HOME TAB
   Widget _buildHome() {
     return Container(
       color: background,
@@ -71,20 +71,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              GestureDetector(
-                onTap: () async {
-                  setState(() {
-                    _selectedIndex = 4; // Go to Profile tab
-                  });
-                },
-                child: CircleAvatar(
-                  radius: 28,
-                  backgroundColor: primary.withOpacity(0.2),
-                  backgroundImage:
-                  _userAvatar != null ? AssetImage(_userAvatar!) : null,
-                  child: _userAvatar == null
-                      ? Icon(Icons.person, color: accent, size: 35)
-                      : null,
+              // 🔥 Avatar NO TAP — auto updates only
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: primary.withOpacity(0.2),
+                child: _userAvatar == null
+                    ? Icon(Icons.person, color: accent, size: 35)
+                    : ClipOval(
+                  child: Image.asset(
+                    _userAvatar!,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(width: 15),
@@ -125,18 +124,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     }),
                 _buildAnimatedCard(
                     "Chat with Heneuro", "assets/images/chat.png", () {
-                  _onItemTapped(2); // open AI tab
+                  _onItemTapped(2);
                 }),
-                _buildAnimatedCard("Mood Updates", "assets/images/mood.png",
-                        () {
-                      final String uid = FirebaseAuth.instance.currentUser!.uid;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MoodUpdatesScreen(uid: uid),
-                        ),
-                      );
-                    }),
+                _buildAnimatedCard(
+                    "Mood Updates", "assets/images/mood.png", () {
+                  final String uid = FirebaseAuth.instance.currentUser!.uid;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MoodUpdatesScreen(uid: uid),
+                    ),
+                  );
+                }),
                 _buildAnimatedCard(
                   "Listen to Music",
                   "assets/images/music.png",
@@ -147,7 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       MaterialPageRoute(
                         builder: (_) => MusicScreen(
                           uid: uid,
-                          isDarkMode: _isDarkMode, // ✅ fixed: added parameter
+                          isDarkMode: _isDarkMode,
                         ),
                       ),
                     );
@@ -205,7 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------- EXPLORE TAB ----------
+  // EXPLORE TAB
   Widget _buildExplore() {
     return Container(
       color: background,
@@ -271,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------- OTHERS TAB ----------
+  // OTHERS TAB
   Widget _buildJournalMood() {
     return Container(
       color: background,
@@ -297,8 +296,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final String uid = FirebaseAuth.instance.currentUser!.uid;
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (_) => MoodUpdatesScreen(uid: uid)),
+                  MaterialPageRoute(builder: (_) => MoodUpdatesScreen(uid: uid)),
                 );
               }),
           _buildFeatureCard("Self-Help Resources", Icons.self_improvement,
@@ -335,13 +333,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------- BUILD ----------
   @override
   Widget build(BuildContext context) {
     final pages = [
       _buildHome(),
       _buildExplore(),
-      HeneuroTab(isDarkMode: _isDarkMode), // ✅ AI tab
+      HeneuroTab(isDarkMode: _isDarkMode),
       _buildJournalMood(),
       ProfileTab(
         username: widget.username,
@@ -390,11 +387,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+
+        // 🔥🔥🔥 AUTO REFRESH AVATAR WHEN SWITCHING TABS
         body: PageView(
           controller: _pageController,
-          onPageChanged: (index) => setState(() => _selectedIndex = index),
+          onPageChanged: (index) async {
+            setState(() => _selectedIndex = index);
+            await _loadUserAvatar(); // <— THE MAGIC FIX
+          },
           children: pages,
         ),
+
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,

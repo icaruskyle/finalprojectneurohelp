@@ -50,37 +50,36 @@ class _ProfileTabState extends State<ProfileTab> {
 
   void _showAvatarPicker(BuildContext context) {
     final avatarPaths = [
-      'assets/avatars/avatar1.png',
-      'assets/avatars/avatar2.png',
-      'assets/avatars/avatar3.png',
-      'assets/avatars/1v.png',
-      'assets/avatars/2v.png',
-      'assets/avatars/3v.png',
-      'assets/avatars/4v.png',
-      'assets/avatars/5v.png',
-      'assets/avatars/6v.png',
-      'assets/avatars/7v.png',
-      'assets/avatars/8v.png',
-      'assets/avatars/9v.png',
-      'assets/avatars/10v.png',
-      'assets/avatars/11v.png',
-      'assets/avatars/12v.png',
-      'assets/avatars/13v.png',
-      'assets/avatars/14v.png',
-      'assets/avatars/15v.png',
-      'assets/avatars/16v.png',
-      'assets/avatars/17v.png',
-      'assets/avatars/18v.png',
-      'assets/avatars/19v.png',
-      'assets/avatars/20v.png',
-      'assets/avatars/21v.png',
-      'assets/avatars/22v.png',
-      'assets/avatars/23v.png',
-      'assets/avatars/24v.png',
-      'assets/avatars/25v.png',
-      'assets/avatars/26v.png',
-      'assets/avatars/27v.png',
-      'assets/avatars/avatar4.png',
+      'assets/avatars/avatar_1.png',
+      'assets/avatars/avatar_2.png',
+      'assets/avatars/avatar_3.png',
+      'assets/avatars/avatar_4.png',
+      'assets/avatars/avatar_5.png',
+      'assets/avatars/avatar_6.png',
+      'assets/avatars/avatar_7.png',
+      'assets/avatars/avatar_8.png',
+      'assets/avatars/avatar_9.png',
+      'assets/avatars/avatar_10.png',
+      'assets/avatars/avatar_11.png',
+      'assets/avatars/avatar_12.png',
+      'assets/avatars/avatar_13.png',
+      'assets/avatars/avatar_14.png',
+      'assets/avatars/avatar_15.png',
+      'assets/avatars/avatar_16.png',
+      'assets/avatars/avatar_17.png',
+      'assets/avatars/avatar_18.png',
+      'assets/avatars/avatar_19.png',
+      'assets/avatars/avatar_20.png',
+      'assets/avatars/avatar_21.png',
+      'assets/avatars/avatar_22.png',
+      'assets/avatars/avatar_23.png',
+      'assets/avatars/avatar_24.png',
+      'assets/avatars/avatar_25.png',
+      'assets/avatars/avatar_26.png',
+      'assets/avatars/avatar_27.png',
+      'assets/avatars/avatar_28.png',
+      'assets/avatars/avatar_29.png',
+      'assets/avatars/avatar_30.png',
     ];
 
     showDialog(
@@ -101,9 +100,13 @@ class _ProfileTabState extends State<ProfileTab> {
               final avatar = avatarPaths[index];
               return GestureDetector(
                 onTap: () => _selectAvatar(avatar),
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundImage: AssetImage(avatar),
+                child: ClipOval(
+                  child: Image.asset(
+                    avatar,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover, // FIX: No more zoom
+                  ),
                 ),
               );
             },
@@ -134,12 +137,18 @@ class _ProfileTabState extends State<ProfileTab> {
           GestureDetector(
             onTap: () => _showAvatarPicker(context),
             child: CircleAvatar(
-              radius: 50,
+              radius: 55,
               backgroundColor: accent,
-              backgroundImage: _selectedAvatar != null ? AssetImage(_selectedAvatar!) : null,
               child: _selectedAvatar == null
                   ? const Icon(Icons.person, size: 50, color: Colors.white)
-                  : null,
+                  : ClipOval(
+                child: Image.asset(
+                  _selectedAvatar!,
+                  width: 110,
+                  height: 110,
+                  fit: BoxFit.cover, // FIX: Clean circular crop
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 20),
