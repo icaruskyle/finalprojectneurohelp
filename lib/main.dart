@@ -11,7 +11,8 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/personal_info_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:provider/provider.dart';
+import 'screens/theme_notifier.dart'; // NEW: create this file
 
 /// Background message handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -35,7 +36,12 @@ Future<void> main() async {
   // Notifications
   await NotificationService().initNotifications();
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeNotifier(), // PROVIDER for dark mode
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -43,10 +49,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Provider.of<ThemeNotifier>(context);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'NeuroHelp',
-      theme: ThemeData(primarySwatch: Colors.deepPurple),
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        brightness: Brightness.light,
+      ),
+      darkTheme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        brightness: Brightness.dark,
+      ),
+      themeMode: theme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const AuthWrapper(),
       routes: {
         '/login': (_) => const LoginScreen(),
@@ -54,9 +70,10 @@ class MyApp extends StatelessWidget {
         '/forgot-password': (_) => const ForgotPasswordScreen(),
         '/personal-info': (_) => const PersonalInfoScreen(),
         '/dashboard': (_) => DashboardScreen(
-            username: FirebaseAuth.instance.currentUser?.displayName ??
-                FirebaseAuth.instance.currentUser?.email ??
-                "User"),
+          username: FirebaseAuth.instance.currentUser?.displayName ??
+              FirebaseAuth.instance.currentUser?.email ??
+              "User",
+        ),
       },
     );
   }
@@ -74,7 +91,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   bool _isLoading = true;
   String _username = "User";
 
-
   @override
   void initState() {
     super.initState();
@@ -88,7 +104,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     if (_user != null) {
       final prefs = await SharedPreferences.getInstance();
-      // Load saved username or fallback to Firebase name/email
       _username = prefs.getString('username') ??
           _user!.displayName ??
           _user!.email ??
@@ -99,7 +114,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       _isLoading = false;
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +130,5 @@ class _AuthWrapperState extends State<AuthWrapper> {
     } else {
       return const WelcomeScreen();
     }
-
   }
 }

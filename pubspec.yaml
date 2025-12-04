@@ -40,6 +40,9 @@ dependencies:
   flutter_ai_toolkit: ^0.10.0
   google_generative_ai: ^0.4.7
 
+  #State Management
+  provider: ^6.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

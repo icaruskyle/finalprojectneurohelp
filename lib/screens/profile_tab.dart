@@ -14,7 +14,8 @@ import 'welcome_screen.dart';
 class ProfileTab extends StatefulWidget {
   final String username;
   final bool isDarkMode;
-  final VoidCallback onToggleTheme;
+  final Function(bool) onToggleTheme;
+
 
   const ProfileTab({
     super.key,

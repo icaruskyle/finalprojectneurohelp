@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'theme_notifier.dart';
+
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -10,7 +13,6 @@ class PersonalInfoScreen extends StatefulWidget {
 }
 
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
-  bool isDarkMode = false;
   String? gender;
 
   // Controllers for text fields
@@ -123,10 +125,13 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Provider.of<ThemeNotifier>(context).isDarkMode;
+
     final Color backgroundLight1 = const Color(0xFFD1C4E9);
     final Color backgroundLight2 = const Color(0xFFB39DDB);
     final Color backgroundDark1 = const Color(0xFF1E1E2C);
     final Color backgroundDark2 = const Color(0xFF121212);
+
 
     final Color textColor = isDarkMode ? Colors.white : Colors.deepPurple;
     final Color cardColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
@@ -146,12 +151,10 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           IconButton(
             icon: Icon(
               isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-              color: iconColor,
+              color: isDarkMode ? Colors.purpleAccent : Colors.deepPurple,
             ),
             onPressed: () {
-              setState(() {
-                isDarkMode = !isDarkMode;
-              });
+              Provider.of<ThemeNotifier>(context, listen: false).toggleTheme(!isDarkMode);
             },
           ),
         ],

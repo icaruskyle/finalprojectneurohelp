@@ -30,13 +30,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
-  // Generate a 6-digit code
   String _generateCode() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();
   }
 
-  // Send code to Firestore
   Future<void> _sendCode() async {
     final user = _auth.currentUser;
     if (user != null) {
@@ -46,7 +44,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // In a real app, send this code via email using Cloud Functions or SMTP
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Confirmation code: $code")),
       );
@@ -55,7 +52,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
-  // Verify code and update password
   Future<void> _verifyAndChangePassword() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -82,13 +78,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     try {
       await user.updatePassword(newPassword);
       await _firestore.collection('password_reset_codes').doc(user.uid).delete();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Password changed successfully!")),
       );
+
       _newPasswordController.clear();
       _confirmPasswordController.clear();
       _codeController.clear();
       setState(() => codeSent = false);
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
@@ -98,6 +97,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Change Password"),
@@ -111,7 +112,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             elevation: 4,
-            color: Colors.white.withOpacity(0.9),
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -119,12 +120,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   TextField(
                     controller: _emailController,
                     readOnly: true,
-                    decoration: const InputDecoration(
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                    decoration: InputDecoration(
                       labelText: "Registered Email",
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(
+                        color: isDarkMode ? Colors.white70 : Colors.black87,
+                      ),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 20),
+
                   if (!codeSent)
                     ElevatedButton(
                       onPressed: _sendCode,
@@ -138,33 +146,55 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       ),
                       child: const Text("Send Confirmation Code"),
                     ),
+
                   if (codeSent) ...[
                     TextField(
                       controller: _codeController,
-                      decoration: const InputDecoration(
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      decoration: InputDecoration(
                         labelText: "Enter Confirmation Code",
-                        border: OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 20),
+
                     TextField(
                       controller: _newPasswordController,
                       obscureText: true,
-                      decoration: const InputDecoration(
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      decoration: InputDecoration(
                         labelText: "New Password",
-                        border: OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 20),
+
                     TextField(
                       controller: _confirmPasswordController,
                       obscureText: true,
-                      decoration: const InputDecoration(
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      decoration: InputDecoration(
                         labelText: "Confirm New Password",
-                        border: OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 30),
+
                     ElevatedButton(
                       onPressed: _verifyAndChangePassword,
                       style: ElevatedButton.styleFrom(
