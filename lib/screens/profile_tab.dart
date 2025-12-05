@@ -10,12 +10,13 @@ import 'feedback_screen.dart';
 import 'account_delete.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'welcome_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class ProfileTab extends StatefulWidget {
   final String username;
   final bool isDarkMode;
   final Function(bool) onToggleTheme;
-
 
   const ProfileTab({
     super.key,
@@ -30,6 +31,7 @@ class ProfileTab extends StatefulWidget {
 
 class _ProfileTabState extends State<ProfileTab> {
   String? _selectedAvatar;
+  File? _pickedImage;
 
   @override
   void initState() {
@@ -44,117 +46,203 @@ class _ProfileTabState extends State<ProfileTab> {
     });
   }
 
-  Future<void> _selectAvatar(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selectedAvatar', path);
-    setState(() => _selectedAvatar = path);
-    Navigator.pop(context);
-  }
-
   void _showAvatarPicker(BuildContext context) {
-    final avatarPaths = [
-      'assets/avatars/avatar_1.png',
-      'assets/avatars/avatar_2.png',
-      'assets/avatars/avatar_3.png',
-      'assets/avatars/avatar_4.png',
-      'assets/avatars/avatar_5.png',
-      'assets/avatars/avatar_6.png',
-      'assets/avatars/avatar_7.png',
-      'assets/avatars/avatar_8.png',
-      'assets/avatars/avatar_9.png',
-      'assets/avatars/avatar_10.png',
-      'assets/avatars/avatar_11.png',
-      'assets/avatars/avatar_12.png',
-      'assets/avatars/avatar_13.png',
-      'assets/avatars/avatar_14.png',
-      'assets/avatars/avatar_15.png',
-      'assets/avatars/avatar_16.png',
-      'assets/avatars/avatar_17.png',
-      'assets/avatars/avatar_18.png',
-      'assets/avatars/avatar_19.png',
-      'assets/avatars/avatar_20.png',
-      'assets/avatars/avatar_21.png',
-      'assets/avatars/avatar_22.png',
-      'assets/avatars/avatar_23.png',
-      'assets/avatars/avatar_24.png',
-      'assets/avatars/avatar_25.png',
-      'assets/avatars/avatar_26.png',
-      'assets/avatars/avatar_27.png',
-      'assets/avatars/avatar_28.png',
-      'assets/avatars/avatar_29.png',
-      'assets/avatars/avatar_30.png',
-    ];
+    final avatarPaths = List.generate(
+      30,
+          (i) => 'assets/avatars/avatar_${i + 1}.png',
+    );
+
+    String? tempSelectedAvatar = _selectedAvatar;
+    File? tempPickedImage = _pickedImage;
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Choose Your Avatar'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: GridView.builder(
-            shrinkWrap: true,
-            itemCount: avatarPaths.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-            ),
-            itemBuilder: (context, index) {
-              final avatar = avatarPaths[index];
-              return GestureDetector(
-                onTap: () => _selectAvatar(avatar),
-                child: ClipOval(
-                  child: Image.asset(
-                    avatar,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover, // FIX: No more zoom
+      builder: (_) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text('Choose Your Avatar'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 400,
+              child: Column(
+                children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      final picked = await ImagePicker()
+                          .pickImage(source: ImageSource.gallery);
+
+                      if (picked != null) {
+                        setStateDialog(() {
+                          tempPickedImage = File(picked.path);
+                          tempSelectedAvatar = null;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text("Upload Photo"),
                   ),
+                  const SizedBox(height: 15),
+
+                  Expanded(
+                    child: GridView.builder(
+                      itemCount: avatarPaths.length,
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                      ),
+                      itemBuilder: (context, index) {
+                        final avatar = avatarPaths[index];
+                        final isSelected = tempSelectedAvatar == avatar;
+
+                        return GestureDetector(
+                          onTap: () {
+                            setStateDialog(() {
+                              tempSelectedAvatar = avatar;
+                              tempPickedImage = null;
+                            });
+                          },
+                          child: Stack(
+                            children: [
+                              ClipOval(
+                                child: Image.asset(
+                                  avatar,
+                                  width: 90,
+                                  height: 90,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              if (isSelected)
+                                Positioned(
+                                  top: 5,
+                                  right: 5,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.green,
+                                    ),
+                                    padding: const EdgeInsets.all(5),
+                                    child: const Icon(
+                                      Icons.check,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+
+                  if (tempPickedImage != null) {
+                    await prefs.setString('selectedAvatar', tempPickedImage!.path);
+                    setState(() {
+                      _pickedImage = tempPickedImage;
+                      _selectedAvatar = tempPickedImage!.path;
+                    });
+                  } else if (tempSelectedAvatar != null) {
+                    await prefs.setString('selectedAvatar', tempSelectedAvatar!);
+                    setState(() {
+                      _selectedAvatar = tempSelectedAvatar;
+                      _pickedImage = null;
+                    });
+                  }
+
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white, // text/icon color
                 ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
+                child: const Text("Save"),
+              )
+
+            ],
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = widget.isDarkMode ? Colors.deepPurpleAccent : Colors.deepPurple;
-    final Color textPrimary = widget.isDarkMode ? Colors.white : Colors.deepPurple.shade900;
-    final Color cardColor = widget.isDarkMode ? Colors.grey[850]! : Colors.white;
-    final Color background = widget.isDarkMode ? Colors.black : Colors.white;
+    final Color accent =
+    widget.isDarkMode ? Colors.deepPurpleAccent : Colors.deepPurple;
+    final Color textPrimary =
+    widget.isDarkMode ? Colors.white : Colors.deepPurple.shade900;
+    final Color cardColor =
+    widget.isDarkMode ? Colors.grey[850]! : Colors.white;
+    final Color background =
+    widget.isDarkMode ? Colors.black : Colors.white;
 
     return Container(
       color: background,
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          GestureDetector(
-            onTap: () => _showAvatarPicker(context),
-            child: CircleAvatar(
-              radius: 55,
-              backgroundColor: accent,
-              child: _selectedAvatar == null
-                  ? const Icon(Icons.person, size: 50, color: Colors.white)
-                  : ClipOval(
-                child: Image.asset(
-                  _selectedAvatar!,
-                  width: 110,
-                  height: 110,
-                  fit: BoxFit.cover, // FIX: Clean circular crop
-                ),
+          Center(
+            child: GestureDetector(
+              onTap: () => _showAvatarPicker(context),
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 60,
+                    backgroundColor: accent,
+                    backgroundImage: _pickedImage != null
+                        ? FileImage(_pickedImage!)
+                        : (_selectedAvatar != null
+                        ? (_selectedAvatar!.contains("assets")
+                        ? AssetImage(_selectedAvatar!)
+                        : FileImage(File(_selectedAvatar!)))
+                        : null) as ImageProvider?,
+                    child: (_selectedAvatar == null && _pickedImage == null)
+                        ? const Icon(Icons.person,
+                        size: 60, color: Colors.white)
+                        : null,
+                  ),
+
+                  // + Badge icon
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.deepPurple,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        size: 22,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 20),
+
+          const SizedBox(height: 15),
+
           Center(
             child: Text(
               widget.username,
@@ -165,25 +253,83 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          _buildProfileTile(context, Icons.info, "Personal Information",
-              const PersonalInfoScreen(), cardColor, textPrimary, accent),
-          _buildProfileTile(context, Icons.settings, "Account Settings",
-              const AccountSettingsScreen(), cardColor, textPrimary, accent),
-          _buildProfileTile(context, Icons.privacy_tip, "Data Privacy",
-              const DataPrivacyScreen(), cardColor, textPrimary, accent),
-          _buildProfileTile(context, Icons.lock, "Change Password",
-              const ChangePasswordScreen(), cardColor, textPrimary, accent),
-          _buildProfileTile(context, Icons.article, "Terms & Conditions",
-              const TermsConditionsScreen(), cardColor, textPrimary, accent),
-          _buildProfileTile(context, Icons.feedback, "Feedback",
-              const FeedbackScreen(), cardColor, textPrimary, accent),
-          _buildProfileTile(context, Icons.logout, "Logout", null, cardColor,
-              textPrimary, accent,
-              isLogout: true),
-          _buildProfileTile(context, Icons.delete_forever, "Delete Account",
-              null, cardColor, textPrimary, accent,
-              isDelete: true),
+
+          const SizedBox(height: 20),
+
+          _buildProfileTile(
+            context,
+            Icons.info,
+            "Personal Information",
+            const PersonalInfoScreen(),
+            cardColor,
+            textPrimary,
+            accent,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.settings,
+            "Account Settings",
+            const AccountSettingsScreen(),
+            cardColor,
+            textPrimary,
+            accent,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.privacy_tip,
+            "Data Privacy",
+            const DataPrivacyScreen(),
+            cardColor,
+            textPrimary,
+            accent,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.lock,
+            "Change Password",
+            const ChangePasswordScreen(),
+            cardColor,
+            textPrimary,
+            accent,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.article,
+            "Terms & Conditions",
+            const TermsConditionsScreen(),
+            cardColor,
+            textPrimary,
+            accent,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.feedback,
+            "Feedback",
+            const FeedbackScreen(),
+            cardColor,
+            textPrimary,
+            accent,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.logout,
+            "Logout",
+            null,
+            cardColor,
+            textPrimary,
+            accent,
+            isLogout: true,
+          ),
+          _buildProfileTile(
+            context,
+            Icons.delete_forever,
+            "Delete Account",
+            null,
+            cardColor,
+            textPrimary,
+            accent,
+            isDelete: true,
+          ),
         ],
       ),
     );
@@ -219,7 +365,8 @@ class _ProfileTabState extends State<ProfileTab> {
               barrierDismissible: false,
               builder: (context) => AlertDialog(
                 title: const Text("Logout"),
-                content: const Text("Are you sure you want to logout?"),
+                content:
+                const Text("Are you sure you want to logout?"),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -230,22 +377,25 @@ class _ProfileTabState extends State<ProfileTab> {
                       await FirebaseAuth.instance.signOut();
 
                       final prefs = await SharedPreferences.getInstance();
-                      await prefs.remove('username'); // remove saved username
+                      await prefs.remove('username');
 
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const WelcomeScreen()),
                             (route) => false,
                       );
                     },
-                    child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                    child: const Text("Logout",
+                        style: TextStyle(color: Colors.red)),
                   ),
                 ],
               ),
             );
-        } else if (isDelete) {
+          } else if (isDelete) {
             AccountDeleteHelper.confirmAndDeleteAccount(context);
           } else if (screen != null) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+            Navigator.push(
+                context, MaterialPageRoute(builder: (_) => screen));
           }
         },
       ),

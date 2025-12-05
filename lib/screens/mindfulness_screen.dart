@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class MindfulnessScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -18,6 +20,17 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
   Timer? _timer;
   late AnimationController _particleController;
 
+  bool isRunning = false;
+  int sessionCount = 0;
+  late String uid;
+
+  // TTS
+  final FlutterTts tts = FlutterTts();
+
+  // Audio Player
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // Meditation Steps
   final List<String> steps = [
     "Find a quiet spot and sit comfortably.",
     "Take a deep breath in... and out.",
@@ -29,57 +42,103 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
 
   final List<Offset> _particles = [];
   final random = Random();
-  late String uid;
+
+  // SESSION SELECTOR
+  final List<int> sessionOptions = [5, 10, 15]; // minutes
+  int selectedMinutes = 5;
+  int _stepDurationSeconds = 5;
 
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      uid = user.uid;
-    }
 
-    // particle animation
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) uid = user.uid;
+
+    tts.setLanguage("en-US");
+    tts.setSpeechRate(0.45);
+
+    // Initialize particles
     for (int i = 0; i < 50; i++) {
       _particles.add(Offset(random.nextDouble(), random.nextDouble()));
     }
     _particleController =
     AnimationController(vsync: this, duration: const Duration(seconds: 10))
       ..repeat();
+
+    _fetchSessionCount();
   }
 
-  Future<int> _getSessionCount() async {
+  Future<void> _fetchSessionCount() async {
+    if (uid.isEmpty) return;
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('mindfulness_sessions')
         .get();
-    return snapshot.docs.length;
+    setState(() {
+      sessionCount = snapshot.docs.length;
+    });
   }
 
-  void startMindfulness() {
-    setState(() => step = 0);
-    _timer?.cancel();
-    DateTime startTime = DateTime.now();
+  Future<void> _speak(String text) async {
+    await tts.stop();
+    await tts.speak(text);
+  }
 
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+  void startMindfulness() async {
+    if (isRunning) return;
+
+    // Play background audio
+    await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+    await _audioPlayer.play(AssetSource("audio/Healing.mp3"));
+
+    setState(() {
+      isRunning = true;
+      step = 0;
+    });
+    _speak(steps[step]);
+
+    DateTime startTime = DateTime.now();
+    _timer?.cancel();
+
+    int totalSteps = steps.length;
+    _stepDurationSeconds = (selectedMinutes * 60 ~/ totalSteps).clamp(5, 60);
+
+    _timer = Timer.periodic(Duration(seconds: _stepDurationSeconds), (timer) async {
+      if (!mounted || !isRunning) {
+        timer.cancel();
+        return;
+      }
+
       if (step < steps.length - 1) {
         setState(() => step++);
+        _speak(steps[step]);
       } else {
         timer.cancel();
+        setState(() => isRunning = false);
+        await _audioPlayer.stop();
+
         final duration = DateTime.now().difference(startTime).inSeconds;
         await _saveSessionToFirebase(duration: duration);
         _showTopNotification("🌿 Mindfulness session completed!");
+        _speak("Mindfulness session completed");
       }
     });
   }
 
-  void resetMindfulness() {
+  void resetMindfulness() async {
     _timer?.cancel();
-    setState(() => step = 0);
+    tts.stop();
+    await _audioPlayer.stop();
+    setState(() {
+      step = 0;
+      isRunning = false;
+    });
   }
 
   Future<void> _saveSessionToFirebase({required int duration}) async {
+    if (uid.isEmpty) return;
     await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -87,8 +146,11 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
         .add({
       'timestamp': DateTime.now(),
       'duration': duration,
+      'sessionMinutes': selectedMinutes,
     });
-    setState(() {}); // trigger rebuild for updated session count
+    setState(() {
+      sessionCount++;
+    });
   }
 
   void _showTopNotification(String message) {
@@ -123,13 +185,16 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    tts.stop();
     _particleController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
+
     final bgGradient = isDark
         ? const LinearGradient(
       colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
@@ -151,55 +216,70 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
         decoration: BoxDecoration(gradient: bgGradient),
         child: Stack(
           children: [
-            // Floating particles
             AnimatedBuilder(
               animation: _particleController,
               builder: (context, child) {
                 return CustomPaint(
-                  painter: ParticlePainter(
-                      _particles, _particleController.value, isDark),
+                  painter: ParticlePainter(_particles, _particleController.value, isDark),
                   size: MediaQuery.of(context).size,
                 );
               },
             ),
             Center(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    FutureBuilder<int>(
-                      future: _getSessionCount(),
-                      builder: (context, snapshot) {
-                        final count = snapshot.data ?? 0;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.deepPurple.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            "Sessions Completed: $count",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+
+                    /// SESSION SELECTOR
+                    Text(
+                      "Session Duration",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: sessionOptions.map((min) {
+                        final isSelected = min == selectedMinutes;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedMinutes = min;
+                              if (isRunning) resetMindfulness();
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.blue
+                                  : (isDark ? Colors.grey[800] : Colors.grey[300]),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Text(
+                              "$min min",
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? Colors.white : Colors.black),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         );
-                      },
+                      }).toList(),
                     ),
-                    const SizedBox(height: 20),
-                    AnimatedContainer(
-                      duration: const Duration(seconds: 1),
-                      curve: Curves.easeInOut,
-                      height: 100 + (step * 5),
-                      width: 100 + (step * 5),
-                      child: const Icon(Icons.self_improvement,
-                          size: 100, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 30),
+
+                    /// STEP DISPLAY
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 600),
                       child: Text(
@@ -212,23 +292,20 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
                             fontWeight: FontWeight.bold),
                       ),
                     ),
-                    const SizedBox(height: 30),
-                    LinearProgressIndicator(
-                      value: (step + 1) / steps.length,
-                      backgroundColor: Colors.white24,
-                      color: Colors.white,
-                      minHeight: 6,
-                    ),
-                    const SizedBox(height: 40),
+
+                    const SizedBox(height: 20),
+
+                    /// START / RESET BUTTONS
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: startMindfulness,
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text("Start"),
+                          onPressed: isRunning ? null : startMindfulness,
+                          icon: Icon(isRunning ? Icons.hourglass_top : Icons.play_arrow),
+                          label: Text(isRunning ? "Running" : "Start"),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurpleAccent,
+                            backgroundColor:
+                            isRunning ? Colors.grey : Colors.deepPurpleAccent,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 12),
@@ -253,7 +330,7 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),

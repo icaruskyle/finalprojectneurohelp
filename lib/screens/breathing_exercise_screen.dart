@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class BreathingExerciseScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -25,15 +26,23 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   final List<Offset> _particles = [];
 
   int sessionCount = 0;
+  bool isRunning = false;
+
+  // AI VOICE
+  final FlutterTts tts = FlutterTts();
 
   @override
   void initState() {
     super.initState();
 
-    // initialize particles
+    // Setup AI voice
+    tts.setLanguage("en-US");
+    tts.setSpeechRate(0.45); // slow, meditation vibe
+
     for (int i = 0; i < 50; i++) {
       _particles.add(Offset(random.nextDouble(), random.nextDouble()));
     }
+
     _particleController =
     AnimationController(vsync: this, duration: const Duration(seconds: 10))
       ..repeat();
@@ -44,68 +53,94 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   Future<void> _fetchSessionCount() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final uid = user.uid;
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(uid)
+          .doc(user.uid)
           .collection('breathing_sessions')
           .get();
+
       setState(() {
         sessionCount = snapshot.docs.length;
       });
     }
   }
 
+  Future speak(String text) async {
+    await tts.stop();
+    await tts.speak(text);
+  }
+
   void startBreathing() {
+    if (isRunning) return; // prevent double tap
+
     setState(() {
+      isRunning = true;
       stepCount = 0;
       instruction = "Inhale deeply... 🌬️";
       circleSize = 200;
-      circleColor = Colors.purpleAccent.withOpacity(0.7);
     });
 
+    speak("Inhale");
+
     timer?.cancel();
-    int secondsPerStep = 4;
     DateTime startTime = DateTime.now();
+    int secondsPerStep = 4;
 
     timer = Timer.periodic(Duration(seconds: secondsPerStep), (t) {
+      if (!mounted) return;
+
+      if (!isRunning) {
+        t.cancel();
+        return;
+      }
+
       setState(() {
         if (stepCount % 3 == 0) {
           instruction = "Inhale deeply... 🌬️";
           circleSize = 200;
           circleColor = Colors.purpleAccent.withOpacity(0.8);
+          speak("Inhale");
         } else if (stepCount % 3 == 1) {
           instruction = "Hold... 😌";
           circleSize = 180;
           circleColor = Colors.deepPurple.withOpacity(0.7);
+          speak("Hold");
         } else {
           instruction = "Exhale slowly... 💨";
           circleSize = 150;
           circleColor = Colors.deepPurpleAccent.withOpacity(0.6);
+          speak("Exhale");
         }
         stepCount++;
       });
 
       if (stepCount > 8) {
-        timer?.cancel();
+        t.cancel();
         setState(() {
+          isRunning = false;
           instruction = "Great job! 💜 Session completed.";
           circleSize = 150;
-          circleColor = Colors.purpleAccent.withOpacity(0.7);
-          sessionCount++;
         });
+
+        speak("Great job. Session completed.");
 
         _saveSessionToFirebase(
             duration: DateTime.now().difference(startTime).inSeconds);
+
+        sessionCount++;
       }
     });
   }
 
-  void resetBreathing() {
+  void stopBreathing() {
+    if (!isRunning) return;
+
     timer?.cancel();
+    tts.stop();
+
     setState(() {
-      stepCount = 0;
-      instruction = "Tap Start to Begin";
+      isRunning = false;
+      instruction = "Session stopped.";
       circleSize = 150;
       circleColor = Colors.purpleAccent.withOpacity(0.7);
     });
@@ -114,11 +149,9 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   Future<void> _saveSessionToFirebase({required int duration}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final uid = user.uid;
-      // Save session in a subcollection under the user's document
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(uid)
+          .doc(user.uid)
           .collection('breathing_sessions')
           .add({
         'timestamp': DateTime.now(),
@@ -130,6 +163,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   @override
   void dispose() {
     timer?.cancel();
+    tts.stop();
     _particleController.dispose();
     super.dispose();
   }
@@ -137,6 +171,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
+
     final bgGradient = isDark
         ? const LinearGradient(
       colors: [Color(0xFF1C1C1E), Color(0xFF2C2C2E)],
@@ -173,8 +208,8 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.deepPurple.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(20),
@@ -212,55 +247,36 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
                     ),
                   ),
                   const SizedBox(height: 30),
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 800),
-                    opacity: 1.0,
-                    child: Text(
-                      instruction,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Text(
+                    instruction,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: startBreathing,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text("Start"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurpleAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30)),
-                          shadowColor: Colors.purpleAccent,
-                          elevation: 8,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      ElevatedButton.icon(
-                        onPressed: resetBreathing,
-                        icon: const Icon(Icons.restart_alt),
-                        label: const Text("Reset"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30)),
-                          shadowColor: Colors.purpleAccent,
-                          elevation: 8,
-                        ),
-                      ),
-                    ],
+
+                  /// ⬇ FIXED START / STOP BUTTON
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      isRunning ? stopBreathing() : startBreathing();
+                    },
+                    icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
+                    label: Text(isRunning ? "Stop" : "Start"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isRunning
+                          ? Colors.redAccent
+                          : Colors.deepPurpleAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      shadowColor: Colors.purpleAccent,
+                      elevation: 8,
+                    ),
                   )
                 ],
               ),
@@ -281,7 +297,8 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = (isDark ? Colors.purpleAccent : Colors.white70).withOpacity(0.3)
+      ..color =
+      (isDark ? Colors.purpleAccent : Colors.white70).withOpacity(0.3)
       ..style = PaintingStyle.fill;
 
     for (var p in particles) {

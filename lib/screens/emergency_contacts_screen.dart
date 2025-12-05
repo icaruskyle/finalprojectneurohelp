@@ -182,7 +182,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Emergency Contacts / Helplines"),
-        backgroundColor: Colors.purple,
+        backgroundColor: Colors.deepPurple,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -209,6 +209,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   ],
                   description: "24/7 free confidential support.",
                   link: "https://www.facebook.com/HopelinePH",
+                  isDarkMode: isDarkMode,
                 ),
                 const SizedBox(height: 16),
 
@@ -221,6 +222,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                     "0922-893-8944"
                   ],
                   link: "https://www.facebook.com/InTouchCrisisLine",
+                  isDarkMode: isDarkMode,
                 ),
                 const SizedBox(height: 16),
 
@@ -229,6 +231,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   numbers: ["1553", "0917-899-8727", "0908-639-2672"],
                   description: "Connects you to a volunteer.",
                   link: "https://www.facebook.com/NCMHCrisisLine",
+                  isDarkMode: isDarkMode,
                 ),
                 const SizedBox(height: 16),
 
@@ -236,6 +239,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   title: "MentalHealthPH",
                   numbers: ["1553", "7-989-8727", "0917-899-8727"],
                   link: "https://www.facebook.com/mentalhealthph",
+                  isDarkMode: isDarkMode,
                 ),
                 const SizedBox(height: 16),
 
@@ -286,6 +290,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                                   initialNumbers: List<String>.from(data['numbers']),
                                 ),
                                 onDelete: () => _deleteContact(doc.id),
+                                isDarkMode: isDarkMode,
                               ),
                               const SizedBox(height: 16),
                             ],
@@ -312,6 +317,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     bool showEditDelete = false,
     VoidCallback? onEdit,
     VoidCallback? onDelete,
+    required bool isDarkMode,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -375,7 +381,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
           if (description != null) ...[
             const SizedBox(height: 10),
-            Text(description!, style: const TextStyle(fontSize: 12)),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.black87 : Colors.black87, // <-- dynamic color
+              ),
+            ),
           ],
 
           if (link != null) ...[

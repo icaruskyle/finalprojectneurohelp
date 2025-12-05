@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'theme_notifier.dart'; // path depends on your project structure
+import 'dart:io';
 
 class DashboardScreen extends StatefulWidget {
   final String username;
@@ -45,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _pageController.jumpToPage(index);
   }
 
-  // CARD & THEME COLORS
+  // ------------------ Colors ------------------
   Color primary(bool isDarkMode) => Colors.deepPurple;
   Color background(bool isDarkMode) => isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
   Color cardColor(bool isDarkMode) => isDarkMode ? const Color(0xFF2C2C2E) : Colors.white;
@@ -70,8 +71,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: _userAvatar == null
                     ? Icon(Icons.person, color: accent(isDarkMode), size: 35)
                     : ClipOval(
-                  child: Image.asset(
+                  child: _userAvatar!.contains("assets")
+                      ? Image.asset(
                     _userAvatar!,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                  )
+                      : Image.file(
+                    File(_userAvatar!),
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
@@ -243,8 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
-    final isDarkMode = Provider.of<ThemeNotifier>(context).isDarkMode;
-
+    final isDarkMode = themeNotifier.isDarkMode;
 
     final pages = [
       _buildHome(isDarkMode),
@@ -253,10 +260,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _buildJournalMood(isDarkMode),
       ProfileTab(
         username: widget.username,
-        isDarkMode: isDarkMode, // bool from Provider
-        onToggleTheme: (value) => Provider.of<ThemeNotifier>(context, listen: false).toggleTheme(value),
+        isDarkMode: isDarkMode,
+        onToggleTheme: (value) => themeNotifier.toggleTheme(value),
       )
-
     ];
 
     return WillPopScope(
@@ -295,7 +301,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           controller: _pageController,
           onPageChanged: (index) async {
             setState(() => _selectedIndex = index);
-            await _loadUserAvatar();
+            await _loadUserAvatar(); // <-- updates avatar immediately
           },
           children: pages,
         ),

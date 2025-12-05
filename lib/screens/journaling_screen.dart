@@ -18,9 +18,7 @@ class _JournalingScreenState extends State<JournalingScreen> {
   void initState() {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      uid = user.uid;
-    }
+    if (user != null) uid = user.uid;
   }
 
   Future<void> saveNote() async {
@@ -29,7 +27,6 @@ class _JournalingScreenState extends State<JournalingScreen> {
 
     _controller.clear();
 
-    // Save note in Firestore
     await _firestore
         .collection('users')
         .doc(uid)
@@ -42,7 +39,17 @@ class _JournalingScreenState extends State<JournalingScreen> {
     _showTopNotification("✅ Your journal entry has been saved!");
   }
 
-  // ---------- Top Notification ----------
+  Future<void> deleteNote(String docId) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('journals')
+        .doc(docId)
+        .delete();
+
+    _showTopNotification("🗑 Journal entry deleted.");
+  }
+
   void _showTopNotification(String message, {bool isError = false}) {
     final overlay = Overlay.of(context);
     if (overlay == null) return;
@@ -104,13 +111,17 @@ class _JournalingScreenState extends State<JournalingScreen> {
               TextField(
                 controller: _controller,
                 maxLines: 8,
-                style: const TextStyle(color: Colors.black87),
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
                   hintText: "Write your thoughts here...",
+                  hintStyle: TextStyle(
+                      color: isDarkMode ? Colors.white54 : Colors.black45),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor:
+                  isDarkMode ? Colors.grey[800] : Colors.white.withOpacity(0.9),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 20),
@@ -121,8 +132,7 @@ class _JournalingScreenState extends State<JournalingScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.deepPurple,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30)),
                 ),
@@ -162,12 +172,26 @@ class _JournalingScreenState extends State<JournalingScreen> {
                             ? (doc['timestamp'] as Timestamp).toDate()
                             : DateTime.now();
                         return Card(
-                          color: Colors.white.withOpacity(0.9),
+                          color: isDarkMode
+                              ? Colors.grey[850]
+                              : Colors.white.withOpacity(0.9),
                           child: ListTile(
-                            title: Text(text),
+                            title: Text(
+                              text,
+                              style: TextStyle(
+                                  color: isDarkMode ? Colors.white : Colors.black87),
+                            ),
                             subtitle: Text(
                               "${timestamp.day}/${timestamp.month}/${timestamp.year} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}",
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDarkMode ? Colors.white70 : Colors.black54,
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(Icons.delete,
+                                  color: isDarkMode ? Colors.red[300] : Colors.red),
+                              onPressed: () => deleteNote(doc.id),
                             ),
                           ),
                         );
