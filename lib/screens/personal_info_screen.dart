@@ -17,7 +17,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   // Controllers for text fields
   final TextEditingController _fullNameController = TextEditingController();
-  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
 
@@ -30,7 +29,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     _loadUserInfo();
   }
 
-  // Load current user info from Firestore
   void _loadUserInfo() async {
     final user = _auth.currentUser;
     if (user != null) {
@@ -40,7 +38,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         final data = doc.data()!;
         setState(() {
           _fullNameController.text = data['fullName'] ?? '';
-          _usernameController.text = data['username'] ?? '';
           _birthdateController.text = data['birthday'] ?? '';
           _contactController.text = data['contact'] ?? '';
           gender = data['gender'];
@@ -54,7 +51,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           final data = query.docs.first.data();
           setState(() {
             _fullNameController.text = data['fullName'] ?? '';
-            _usernameController.text = data['username'] ?? '';
+
             _birthdateController.text = data['birthday'] ?? '';
             _contactController.text = data['contact'] ?? '';
             gender = data['gender'];
@@ -64,7 +61,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     }
   }
 
-  // Show top notification overlay
+
   void _showNotification(String message) {
     final overlay = Overlay.of(context);
     if (overlay == null) return;
@@ -103,7 +100,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       if (userDoc.exists) {
         await _firestore.collection('users').doc(user.uid).update({
           'fullName': _fullNameController.text.trim(),
-          'username': _usernameController.text.trim(),
           'birthday': _birthdateController.text.trim(),
           'contact': _contactController.text.trim(),
           'gender': gender,
@@ -111,7 +107,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       } else {
         await _firestore.collection('users').doc(user.uid).set({
           'fullName': _fullNameController.text.trim(),
-          'username': _usernameController.text.trim(),
+
           'birthday': _birthdateController.text.trim(),
           'contact': _contactController.text.trim(),
           'gender': gender,
@@ -203,13 +199,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                           inputType: TextInputType.name,
                           isDarkMode: isDarkMode,
                         ),
-                        _buildTextField(
-                          controller: _usernameController,
-                          label: "Username",
-                          icon: Icons.account_circle_outlined,
-                          inputType: TextInputType.text,
-                          isDarkMode: isDarkMode,
-                        ),
+
                         Padding(
                           padding: const EdgeInsets.only(bottom: 20),
                           child: TextField(
