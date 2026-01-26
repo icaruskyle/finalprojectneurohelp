@@ -64,6 +64,8 @@ flutter:
     - assets/images/
     - assets/avatars/
     - assets/audio/Healing.mp3
+    - assets/sign_up.png
+    - assets/sign_in.png
 
 flutter_launcher_icons:
   android: true

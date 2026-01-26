@@ -12,7 +12,20 @@
           "package_name": "com.example.projects"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1082023733271-mnev60tbdd58a413ihg7uo6k8lgli0it.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.projects",
+            "certificate_hash": "e0ca14945e3a1e27d160923c14719fbc26171ea4"
+          }
+        },
+        {
+          "client_id": "1082023733271-prmlo5sikt2t66tktdoie6adh90h01d6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA29ske8F-9mEwHRr-tAZniy3gD7iTW8Bw"
@@ -20,7 +33,63 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1082023733271-prmlo5sikt2t66tktdoie6adh90h01d6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1082023733271-tsvovr8fieh003q0sg3b1ijr39eilcrh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.projects"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1082023733271:android:e5ac6cd65475c82617d452",
+        "android_client_info": {
+          "package_name": "com.neurohelp.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1082023733271-t06eqrl89ctbcirb4vpjgecldqb5rtao.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.neurohelp.app",
+            "certificate_hash": "e0ca14945e3a1e27d160923c14719fbc26171ea4"
+          }
+        },
+        {
+          "client_id": "1082023733271-prmlo5sikt2t66tktdoie6adh90h01d6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA29ske8F-9mEwHRr-tAZniy3gD7iTW8Bw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1082023733271-prmlo5sikt2t66tktdoie6adh90h01d6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1082023733271-tsvovr8fieh003q0sg3b1ijr39eilcrh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.projects"
+              }
+            }
+          ]
         }
       }
     }

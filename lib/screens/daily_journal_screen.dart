@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'ai_service.dart';
 import 'mood_updates_screen.dart';
 import 'emergency_contacts_screen.dart';
+import 'music_screen.dart';
 
 class DailyJournalScreen extends StatefulWidget {
   const DailyJournalScreen({super.key});
@@ -24,15 +25,17 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     super.dispose();
   }
 
+  // SAVE ENTRY
   Future<void> _saveEntry() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+    if (user == null) return;
 
     _controller.clear();
-    if (user == null) return;
 
     try {
       final uid = user!.uid;
+
       final journalRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -46,73 +49,43 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       // Detect suicidal risk
       final suicidalDetected = _detectSuicidalRisk(text);
 
-      // Fetch birthdate from Firestore user profile
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      // Fetch birthdate
+      final userDoc =
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
       DateTime? birthDate;
-      if (userDoc.exists && userDoc.data() != null && userDoc.data()!['birthDate'] != null) {
+      if (userDoc.exists &&
+          userDoc.data() != null &&
+          userDoc.data()!['birthDate'] != null) {
         birthDate = (userDoc.data()!['birthDate'] as Timestamp).toDate();
       }
 
-      // AI predicts mood
+      // AI mood prediction
       String mood = await ai.predictMood(text);
 
-      // ---------------- Age-based override for sensitive keywords ----------------
-      String adjustMoodBasedOnAge(String text, DateTime birthDate) {
-        final now = DateTime.now();
-        int age = now.year - birthDate.year;
-        if (birthDate.month > now.month || (birthDate.month == now.month && birthDate.day > now.day)) {
-          age -= 1; // Correct if birthday hasn't occurred yet this year
-        }
-
-        final sensitiveKeywords = [
-          // English
-          "i got pregnant",
-          "i am pregnant",
-          "i became pregnant",
-          "unexpected pregnancy",
-          // Tagalog / Filipino
-          "nabuntis ako",
-          "nagbuntis ako",
-          "nagkaroon ng anak",
-          "hindi inaasahang pagbubuntis",
-          "nagbuntis",
-        ];
-
-        final lowerText = text.toLowerCase();
-
-        for (final keyword in sensitiveKeywords) {
-          if (lowerText.contains(keyword)) {
-            if (age <= 21) return "😞 Disappointed";
-            if (age >= 22 && age <= 25) return "🙂 Neutral";
-            return "😇 Grateful";
-          }
-        }
-
-        return "";
-      }
-
+      // Age-based adjustment
       if (birthDate != null) {
-        final adjustedMood = adjustMoodBasedOnAge(text, birthDate);
-        if (adjustedMood.isNotEmpty) mood = adjustedMood;
+        final adjusted = _adjustMoodBasedOnAge(text, birthDate);
+        if (adjusted.isNotEmpty) mood = adjusted;
       }
 
       final date = DateTime.now().toIso8601String();
 
-      // Save journal entry
+      // Save journal
       final journalDocRef = await journalRef.add({
         'text': text,
         'mood': mood,
         'date': date,
       });
 
-      // Save mood history with journalId link
+      // Save mood history
       await moodHistoryRef.add({
         'mood': mood,
         'date': date,
         'journalId': journalDocRef.id,
       });
 
-      // Show alert if suicidal content detected
+      // Save
       if (suicidalDetected) {
         await _showSuicidalAlertDialog();
       } else {
@@ -124,6 +97,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
+          await _showCalmingMusicPrompt();
         }
       }
     } catch (e) {
@@ -134,12 +108,87 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       }
     }
   }
-  // ---------------- Delete Journal Entry & Linked Mood ----------------
+
+  // Music Pop Up
+  Future<void> _showCalmingMusicPrompt() async {
+    if (!mounted || user == null) return;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Need some calm? 🎧"),
+          content: const Text(
+            "Would you like to listen to calming music to help you relax?",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("No"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MusicScreen(
+                      uid: user!.uid,
+                      isDarkMode:
+                      Theme.of(context).brightness == Brightness.dark,
+                    ),
+                  ),
+                );
+              },
+              child: const Text("Yes, play music"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Age Base
+  String _adjustMoodBasedOnAge(String text, DateTime birthDate) {
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (birthDate.month > now.month ||
+        (birthDate.month == now.month && birthDate.day > now.day)) {
+      age--;
+    }
+
+    final sensitiveKeywords = [
+      "i got pregnant",
+      "i am pregnant",
+      "unexpected pregnancy",
+      "nabuntis ako",
+      "nagbuntis ako",
+      "nagkaroon ng anak",
+    ];
+
+    final lowerText = text.toLowerCase();
+
+    for (final keyword in sensitiveKeywords) {
+      if (lowerText.contains(keyword)) {
+        if (age <= 21) return "😞 Disappointed";
+        if (age <= 25) return "🙂 Neutral";
+        return "😇 Grateful";
+      }
+    }
+    return "";
+  }
+
+  // Delete Entry
   Future<void> _deleteEntry(String journalId) async {
     if (user == null) return;
 
     try {
       final uid = user!.uid;
+
       final journalRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -150,10 +199,8 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
           .doc(uid)
           .collection('mood_history');
 
-      // Delete journal entry
       await journalRef.doc(journalId).delete();
 
-      // Delete linked mood entries
       final moodSnapshot = await moodHistoryRef
           .where('journalId', isEqualTo: journalId)
           .get();
@@ -164,10 +211,11 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Journal entry and linked mood deleted.")),
+          const SnackBar(
+              content: Text("Journal entry and linked mood deleted.")),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Error deleting entry.")),
@@ -176,10 +224,10 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     }
   }
 
-  // ---------------- Suicidal Alert ----------------
+  //Alert
   Future<void> _showSuicidalAlertDialog() async {
-    const defaultHelplineNumber = "+15551234567";
-    const fallbackHelplineUrl = "https://findahelpline.com";
+    const helpline = "+15551234567";
+    const fallbackUrl = "https://findahelpline.com";
 
     if (!mounted) return;
 
@@ -190,35 +238,29 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
         return AlertDialog(
           title: const Text("Immediate Help Recommended"),
           content: const Text(
-            "Your entry contains language that suggests you may be at risk of self-harm or suicide.\n\n"
-                "If you're in immediate danger, please call local emergency services or a crisis helpline right now. "
-                "Would you like to call a helpline, view emergency contacts, or cancel?",
+            "Your entry suggests you may be at risk of self-harm.\n\n"
+                "Please contact emergency services or a crisis helpline.",
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.pop(context);
                 _openEmergencyContacts();
               },
               child: const Text("View Contacts"),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
-                _callNumber(defaultHelplineNumber);
+                Navigator.pop(context);
+                _callNumber(helpline);
               },
-              child: const Text("Call Helpline", style: TextStyle(color: Colors.red)),
+              child:
+              const Text("Call Helpline", style: TextStyle(color: Colors.red)),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _openUrl(fallbackHelplineUrl);
+                Navigator.pop(context);
+                _openUrl(fallbackUrl);
               },
               child: const Text("Open Help Site"),
             ),
@@ -228,41 +270,18 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     );
   }
 
+  // Helpers
   Future<void> _callNumber(String number) async {
     final uri = Uri.parse('tel:$number');
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        _openUrl("https://findahelpline.com");
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open phone dialer.")),
-        );
-      }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     }
   }
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not open the link.")),
-          );
-        }
-      }
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open the link.")),
-        );
-      }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -273,50 +292,22 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     );
   }
 
-  // ---------------- Suicidal Detection ----------------
+  // ================= SUICIDAL DETECTION =================
   bool _detectSuicidalRisk(String text) {
     final lower = text.toLowerCase();
-
     final critical = [
-      // English
       "i want to die",
-      "i want to kill myself",
-      "i'm going to kill myself",
-      "im going to kill myself",
-      "i want to end my life",
       "kill myself",
-      "end my life",
       "suicide",
-      "i'm suicidal",
-      "i am suicidal",
-      "i can't go on",
-      "i cant go on",
-      "i don't want to live",
-      "i dont want to live",
-      "going to jump",
-      "going to overdose",
-      "thoughts of suicide",
-      "thoughts of killing myself",
-      "goodbye forever",
-      "no reason to live",
-      "die",
-
-      // Filipino
-      "gusto ko magpakamatay",
-      "magpapakamatay ako",
-      "pagod na ako",
       "ayoko na",
-      "wala na akong pag asa",
+      "pagod na ako",
+      "magpakamatay",
       "wala nang pag asa",
     ];
-
-    for (final p in critical) {
-      if (lower.contains(p)) return true;
-    }
-    return false;
+    return critical.any((p) => lower.contains(p));
   }
 
-
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -324,7 +315,10 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     if (user == null) {
       return Scaffold(
         body: Center(
-          child: Text("No user logged in", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+          child: Text(
+            "No user logged in",
+            style: TextStyle(color: isDark ? Colors.white : Colors.black),
+          ),
         ),
       );
     }
@@ -335,7 +329,8 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
       backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
         title: const Text("Daily Journal"),
-        backgroundColor: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
+        backgroundColor:
+        isDark ? Colors.deepPurple.shade700 : Colors.deepPurple,
         actions: [
           IconButton(
             icon: const Icon(Icons.mood, color: Colors.white),
@@ -361,10 +356,12 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
               decoration: InputDecoration(
                 labelText: "Write your reflection...",
-                labelStyle: TextStyle(color: isDark ? Colors.purple[200] : Colors.deepPurple),
                 filled: true,
-                fillColor: isDark ? Colors.deepPurple.shade900 : Colors.deepPurple.shade50,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                fillColor: isDark
+                    ? Colors.deepPurple.shade900
+                    : Colors.deepPurple.shade50,
+                border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 10),
@@ -373,7 +370,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text("Save Entry"),
             ),
@@ -387,48 +383,87 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
                     .orderBy('date', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
                   final docs = snapshot.data!.docs;
-                  if (docs.isEmpty) return Center(child: Text("No journal entries yet", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)));
+                  if (docs.isEmpty) {
+                    return Center(
+                      child: Text(
+                        "No journal entries yet",
+                        style: TextStyle(
+                            color:
+                            isDark ? Colors.white70 : Colors.black54),
+                      ),
+                    );
+                  }
 
                   return ListView.builder(
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
+                      final data =
+                      docs[index].data() as Map<String, dynamic>;
                       final docId = docs[index].id;
                       final text = data['text'] ?? '';
                       final mood = data['mood'] ?? 'Unknown';
-                      final date = data['date'] != null ? DateTime.parse(data['date']).toLocal().toString().split(' ')[0] : '';
+                      final date = data['date'] != null
+                          ? DateTime.parse(data['date'])
+                          .toLocal()
+                          .toString()
+                          .split(' ')[0]
+                          : '';
 
                       return Card(
-                        color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        color: isDark
+                            ? Colors.deepPurple.shade800
+                            : Colors.deepPurple.shade50,
+                        margin:
+                        const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                            BorderRadius.circular(12)),
                         child: ListTile(
-                          title: Text(text, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                          subtitle: Text("🗓 $date  •  Mood: $mood",
-                              style: TextStyle(color: mood.contains("⚠️") ? Colors.redAccent : (isDark ? Colors.purpleAccent.shade100 : Colors.deepPurple))),
-                          isThreeLine: true,
+                          title: Text(
+                            text,
+                            style: TextStyle(
+                                color: isDark
+                                    ? Colors.white
+                                    : Colors.black87),
+                          ),
+                          subtitle: Text(
+                            "🗓 $date  •  Mood: $mood",
+                            style: TextStyle(
+                                color: isDark
+                                    ? Colors.purpleAccent.shade100
+                                    : Colors.deepPurple),
+                          ),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.redAccent),
+                            icon: const Icon(Icons.delete,
+                                color: Colors.redAccent),
                             onPressed: () {
                               showDialog(
                                 context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text("Delete Entry"),
-                                  content: const Text("Are you sure you want to delete this entry along with its mood history?"),
+                                builder: (_) => AlertDialog(
+                                  title:
+                                  const Text("Delete Entry"),
+                                  content: const Text(
+                                      "Are you sure you want to delete this entry along with its mood history?"),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text("Cancel"),
+                                      onPressed: () =>
+                                          Navigator.pop(context),
+                                      child:
+                                      const Text("Cancel"),
                                     ),
                                     TextButton(
                                       onPressed: () {
                                         _deleteEntry(docId);
                                         Navigator.pop(context);
                                       },
-                                      child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                      child: const Text("Delete",
+                                          style: TextStyle(
+                                              color: Colors.red)),
                                     ),
                                   ],
                                 ),
