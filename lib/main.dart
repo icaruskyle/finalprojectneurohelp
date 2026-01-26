@@ -9,7 +9,7 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/personal_info_screen.dart';
-import 'screens/dashboard_screen.dart'; 
+import 'screens/dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'screens/theme_notifier.dart';
