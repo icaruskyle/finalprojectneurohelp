@@ -9,12 +9,12 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/personal_info_screen.dart';
-import 'screens/dashboard_screen.dart'; // Siguraduhing tama ang path nito
+import 'screens/dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'screens/theme_notifier.dart';
 
-// Background message handler
+
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -30,10 +30,9 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Background messages
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Notifications
+
   await NotificationService().initNotifications();
 
   runApp(
@@ -69,8 +68,6 @@ class MyApp extends StatelessWidget {
         '/signup': (_) => const SignupScreen(),
         '/forgot-password': (_) => const ForgotPasswordScreen(),
         '/personal-info': (_) => const PersonalInfoScreen(),
-        // FIX: Tinanggal ang 'email' (dahil wala ito sa DashboardScreen widget mo)
-        // at idinagdag ang 'name' (dahil ito ang required sa code mo)
         '/dashboard': (_) => DashboardScreen(
           name: FirebaseAuth.instance.currentUser?.displayName ?? "User",
         ),
@@ -98,14 +95,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _checkCurrentUser() async {
-    // Konting delay para sa smooth transition
     await Future.delayed(const Duration(seconds: 1));
 
     _user = FirebaseAuth.instance.currentUser;
 
     if (_user != null) {
-      // Mas maganda kung sa Firestore mo kukunin ang name,
-      // pero sa ngayon, kukunin muna natin sa Firebase Auth display name.
       _displayName = _user!.displayName ?? "User";
     }
 
@@ -115,6 +109,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +122,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     if (_user != null) {
-      // FIX: Ipinapasa ang 'name' parameter na kailangan ng DashboardScreen
       return DashboardScreen(name: _displayName);
     } else {
       return const WelcomeScreen();
