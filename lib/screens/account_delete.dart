@@ -23,10 +23,19 @@ class AccountDeleteHelper {
               title: const Text("Delete Account"),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     "This will permanently delete your account and all data.\n\n"
                         "This action cannot be undone.",
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "What happens to your data:\n"
+                        "• Your authentication account will be permanently removed\n"
+                        "• All personal records linked to your account will be deleted\n"
+                        "• Journals, mood logs, and feedback entries will be erased\n"
+                        "• Your data cannot be recovered after deletion\n",
                   ),
                   const SizedBox(height: 15),
                   Text(
@@ -76,7 +85,6 @@ class AccountDeleteHelper {
       final firestore = FirebaseFirestore.instance;
       if (user == null) return;
 
-      // Reauthentication
       final providerData = user.providerData.first;
       if (providerData.providerId == 'password') {
         String? email = user.email;
@@ -142,7 +150,6 @@ class AccountDeleteHelper {
         await user.reauthenticateWithCredential(credential);
       }
 
-      // Delete user data
       final uid = user.uid;
       final collections = ['users', 'journals', 'moods', 'feedbacks'];
       for (final col in collections) {
