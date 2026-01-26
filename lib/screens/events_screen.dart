@@ -12,7 +12,7 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedMonth = 'All';
+  String _selectedTime = 'All';
   String _selectedCategory = 'All';
 
   final Map<String, Color> _categoryColors = {
@@ -20,198 +20,189 @@ class _EventsScreenState extends State<EventsScreen> {
     'Campaign': Colors.orange,
     'Workshop': Colors.blue,
     'Conference': Colors.teal,
+    'Webinar': Colors.yellowAccent,
     'Community': Colors.green,
     'Festival': Colors.purple,
     'All': Colors.deepPurple,
   };
 
+  final List<String> timeFilters = [
+    "All",
+    "Today",
+    "This Week",
+    "This Month",
+    "Upcoming",
+  ];
+
   Future<void> _launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
+    final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch $url');
+      throw Exception("Could not launch $url");
     }
+  }
+
+  bool matchTimeFilter(dynamic rawDate) {
+    if (rawDate == null || rawDate is! Timestamp) return true;
+
+    final eventDate = rawDate.toDate();
+    final now = DateTime.now();
+
+    switch (_selectedTime) {
+      case "Today":
+        return eventDate.year == now.year &&
+            eventDate.month == now.month &&
+            eventDate.day == now.day;
+
+      case "This Week":
+        return eventDate.isAfter(now.subtract(const Duration(days: 1))) &&
+            eventDate.isBefore(now.add(const Duration(days: 7)));
+
+      case "This Month":
+        return eventDate.year == now.year &&
+            eventDate.month == now.month;
+
+      case "Upcoming":
+        return eventDate.isAfter(now);
+
+      default:
+        return true;
+    }
+  }
+
+  void _showEventDetails(Map<String, dynamic> event, Color color) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: widget.isDarkMode ? Colors.grey[900] : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                event["title"] ?? "No Title",
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: color),
+              ),
+              const SizedBox(height: 10),
+              Text(event["description"] ?? "No Description"),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _launchURL(event["link"] ?? ""),
+                style: ElevatedButton.styleFrom(backgroundColor: color),
+                child: const Text("Open Link"),
+              )
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
-    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "📅 Upcoming Events",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text("📅 Upcoming Events"),
         backgroundColor: Colors.deepPurple,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection("events").snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection("events")
+            .where("rawDate", isNotEqualTo: null)
+            .orderBy("rawDate", descending: false)
+            .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final events = snapshot.data!.docs
-              .map((doc) => doc.data() as Map<String, dynamic>)
-              .toList();
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                "No events available",
+                style: TextStyle(fontSize: 16),
+              ),
+            );
+          }
 
-          final filteredEvents = events.where((event) {
-            final matchesMonth = _selectedMonth == 'All' || event['month'] == _selectedMonth;
-            final matchesCategory = _selectedCategory == 'All' || event['category'] == _selectedCategory;
-            final matchesSearch = event['title']
+          final events = snapshot.data!.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return {
+              "id": doc.id,
+              "title": data["title"] ?? "",
+              "description": data["description"] ?? "",
+              "category": data["category"] ?? "All",
+              "link": data["link"] ?? "",
+              "rawDate": data["rawDate"],
+            };
+          }).toList();
+
+          final filtered = events.where((event) {
+            final matchTime = matchTimeFilter(event["rawDate"]);
+            final matchCat =
+                _selectedCategory == "All" || event["category"] == _selectedCategory;
+            final matchSearch = event["title"]
                 .toString()
                 .toLowerCase()
                 .contains(_searchController.text.toLowerCase());
-            return matchesMonth && matchesCategory && matchesSearch;
+            return matchTime && matchCat && matchSearch;
           }).toList();
 
           return Column(
             children: [
-              // Search Bar
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.search,
-                        color: isDark ? Colors.white : Colors.deepPurple),
                     hintText: "Search events...",
+                    prefixIcon: const Icon(Icons.search),
                     filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
+                    fillColor: isDark
+                        ? Colors.grey[800]
+                        : Colors.deepPurple.shade50,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide.none,
-                    ),
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide.none),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
-
-              // Filters (responsive)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: screenWidth * 0.45,
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedMonth,
-                          decoration: InputDecoration(
-                            labelText: "Filter by Month",
-                            prefixIcon: Icon(Icons.calendar_today,
-                                color: isDark ? Colors.white : Colors.deepPurple),
-                            filled: true,
-                            fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: "All", child: Text("All")),
-                            DropdownMenuItem(value: "January", child: Text("January")),
-                            DropdownMenuItem(value: "February", child: Text("February")),
-                            DropdownMenuItem(value: "March", child: Text("March")),
-                            DropdownMenuItem(value: "April", child: Text("April")),
-                            DropdownMenuItem(value: "May", child: Text("May")),
-                            DropdownMenuItem(value: "June", child: Text("June")),
-                            DropdownMenuItem(value: "July", child: Text("July")),
-                            DropdownMenuItem(value: "August", child: Text("August")),
-                            DropdownMenuItem(value: "September", child: Text("September")),
-                            DropdownMenuItem(value: "October", child: Text("October")),
-                            DropdownMenuItem(value: "November", child: Text("November")),
-                            DropdownMenuItem(value: "December", child: Text("December")),
-                          ],
-                          onChanged: (v) => setState(() => _selectedMonth = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        width: screenWidth * 0.45,
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedCategory,
-                          decoration: InputDecoration(
-                            labelText: "Category",
-                            prefixIcon: Icon(Icons.category,
-                                color: isDark ? Colors.white : Colors.deepPurple),
-                            filled: true,
-                            fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          items: _categoryColors.keys
-                              .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                              .toList(),
-                          onChanged: (v) => setState(() => _selectedCategory = v!),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Event List
               Expanded(
-                child: filteredEvents.isEmpty
-                    ? const Center(child: Text("No upcoming events found."))
-                    : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: filteredEvents.length,
+                child: ListView.builder(
+                  itemCount: filtered.length,
                   itemBuilder: (context, index) {
-                    final item = filteredEvents[index];
-                    final catColor =
-                        _categoryColors[item['category']] ?? Colors.deepPurple;
+                    final item = filtered[index];
+                    final color =
+                        _categoryColors[item["category"]] ?? Colors.deepPurple;
 
-                    return Card(
-                      color: isDark ? Colors.grey[850] : Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15)),
-                      elevation: 5,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Icon(Icons.event_available,
-                              size: 30, color: catColor),
-                        ),
-                        title: Text(
-                          item['title'],
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: catColor,
-                          ),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item['date'],
-                                style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white70
-                                        : Colors.black87)),
-                            const SizedBox(height: 5),
-                            Text(
-                              item['description'],
-                              style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white60
-                                      : Colors.black54),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 3,
-                            ),
-                          ],
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.open_in_new, color: catColor),
-                          onPressed: () => _launchURL(item['link']),
-                        ),
+                    return ExpansionTile(
+                      leading: Icon(Icons.event, color: color),
+                      title: Text(
+                        item["title"],
+                        style: TextStyle(
+                            color: color, fontWeight: FontWeight.bold),
                       ),
+                      subtitle: Text(item["category"]),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Text(item["description"]),
+                        ),
+                        TextButton(
+                          onPressed: () => _showEventDetails(item, color),
+                          child: const Text("View Details"),
+                        ),
+                      ],
                     );
                   },
                 ),

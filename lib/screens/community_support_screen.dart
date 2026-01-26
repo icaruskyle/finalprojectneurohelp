@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CommunitySupportScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -12,312 +12,252 @@ class CommunitySupportScreen extends StatefulWidget {
 
 class _CommunitySupportScreenState extends State<CommunitySupportScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = 'All';
+  List<String> _selectedCategories = ['All'];
 
-  List<Map<String, dynamic>> _supportGroups = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadGroups();
-  }
-
-  /// 🔥 LOAD DATA FROM FIREBASE
-  Future<void> _loadGroups() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('support_groups')
-        .get();
-
-    setState(() {
-      _supportGroups = snapshot.docs.map((doc) {
-        return {
-          "id": doc.id,
-          "name": doc["name"],
-          "description": doc["description"],
-          "link": doc["link"],
-          "category": doc["category"],
-        };
-      }).toList();
-    });
-  }
-
-  /// 🔥 ADD NEW GROUP
-  Future<void> _addGroup() async {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final linkController = TextEditingController();
-    String category = "Organizations";
-
-    await showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text("Add Support Group"),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name")),
-                TextField(controller: descriptionController, decoration: const InputDecoration(labelText: "Description")),
-                TextField(controller: linkController, decoration: const InputDecoration(labelText: "Link")),
-                DropdownButton<String>(
-                  value: category,
-                  items: const [
-                    DropdownMenuItem(value: "Online Support", child: Text("Online Support")),
-                    DropdownMenuItem(value: "Organizations", child: Text("Organizations")),
-                    DropdownMenuItem(value: "Community Forums", child: Text("Community Forums")),
-                    DropdownMenuItem(value: "Youth Support", child: Text("Youth Support")),
-                    DropdownMenuItem(value: "Hotlines", child: Text("Hotlines")),
-                  ],
-                  onChanged: (value) => category = value!,
-                )
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel")),
-            TextButton(
-                onPressed: () async {
-                  await FirebaseFirestore.instance.collection('support_groups').add({
-                    "name": nameController.text,
-                    "description": descriptionController.text,
-                    "link": linkController.text,
-                    "category": category,
-                  });
-                  Navigator.pop(context);
-                  _loadGroups();
-                },
-                child: const Text("Add")),
-          ],
-        );
-      },
-    );
-  }
-
-  /// 🔥 EDIT GROUP
-  Future<void> _editGroup(Map<String, dynamic> group) async {
-    final nameController = TextEditingController(text: group["name"]);
-    final descriptionController = TextEditingController(text: group["description"]);
-    final linkController = TextEditingController(text: group["link"]);
-    String category = group["category"];
-
-    await showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text("Edit Support Group"),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name")),
-                TextField(controller: descriptionController, decoration: const InputDecoration(labelText: "Description")),
-                TextField(controller: linkController, decoration: const InputDecoration(labelText: "Link")),
-                DropdownButton<String>(
-                  value: category,
-                  items: const [
-                    DropdownMenuItem(value: "Online Support", child: Text("Online Support")),
-                    DropdownMenuItem(value: "Organizations", child: Text("Organizations")),
-                    DropdownMenuItem(value: "Community Forums", child: Text("Community Forums")),
-                    DropdownMenuItem(value: "Youth Support", child: Text("Youth Support")),
-                    DropdownMenuItem(value: "Hotlines", child: Text("Hotlines")),
-                  ],
-                  onChanged: (value) => category = value!,
-                )
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel")),
-            TextButton(
-                onPressed: () async {
-                  await FirebaseFirestore.instance
-                      .collection('support_groups')
-                      .doc(group["id"])
-                      .update({
-                    "name": nameController.text,
-                    "description": descriptionController.text,
-                    "link": linkController.text,
-                    "category": category,
-                  });
-
-                  Navigator.pop(context);
-                  _loadGroups();
-                },
-                child: const Text("Save")),
-          ],
-        );
-      },
-    );
-  }
-
-  /// 🔥 DELETE GROUP
-  Future<void> _deleteGroup(String id) async {
-    await FirebaseFirestore.instance.collection("support_groups").doc(id).delete();
-    _loadGroups();
-  }
+  final List<String> _categories = [
+    'All',
+    'Online Support',
+    'Organizations',
+    'Community Forums',
+    'Youth Support',
+    'Hotlines'
+  ];
 
   Future<void> _launchURL(String url) async {
+    if (url.trim().isEmpty) return;
+
+    if (!url.startsWith('http')) {
+      url = 'https://$url';
+    }
+
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch $url');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open link.")),
+      );
     }
+  }
+
+
+  Widget _categoryChips(bool isDark) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: _categories.map((cat) {
+          final isSelected = _selectedCategories.contains(cat);
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ChoiceChip(
+              label: Text(
+                cat,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : Colors.black87),
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: Colors.deepPurple,
+              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+              onSelected: (_) {
+                setState(() {
+                  if (cat == 'All') {
+                    _selectedCategories = ['All'];
+                  } else {
+                    _selectedCategories.remove('All');
+                    if (isSelected) {
+                      _selectedCategories.remove(cat);
+                    } else {
+                      _selectedCategories.add(cat);
+                    }
+                    if (_selectedCategories.isEmpty) {
+                      _selectedCategories = ['All'];
+                    }
+                  }
+                });
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // 🔹 CARD UI
+  Widget _buildGroupCard(Map<String, dynamic> group, bool isDark) {
+    final titleColor = isDark ? Colors.white : Colors.deepPurple;
+    final descColor = isDark ? Colors.white70 : Colors.black87;
+    final accent = isDark ? Colors.deepPurpleAccent : Colors.deepPurple;
+
+    return Card(
+      elevation: 3,
+      color: isDark ? Colors.grey[850] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _launchURL(group['link'] ?? ''),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Icon(Icons.groups, color: accent, size: 28),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group['name'] ?? '',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: titleColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      group['description'] ?? '',
+                      style: TextStyle(fontSize: 14, color: descColor),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        group['category'] ?? 'Other',
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _launchURL(group['link'] ?? ''),
+                child: Icon(Icons.open_in_new, color: accent),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkMode;
 
-    final filteredGroups = _supportGroups.where((group) {
-      final matchesCategory =
-          _selectedCategory == 'All' || group['category'] == _selectedCategory;
-      final matchesSearch = group['name']
-          .toLowerCase()
-          .contains(_searchController.text.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
-
     return Scaffold(
+      backgroundColor: isDark ? Colors.black : Colors.grey[50],
       appBar: AppBar(
+        backgroundColor: Colors.deepPurple,
         title: const Text(
-          "🤝 Community Support",
+          '🤝 Community Support',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.deepPurple,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _addGroup,
-          )
-        ],
       ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          children: [
 
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                prefixIcon: Icon(Icons.search,
-                    color: isDark ? Colors.white : Colors.deepPurple),
-                hintText: "Search support groups...",
-                filled: true,
-                fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.search,
+                      color: isDark ? Colors.white70 : Colors.deepPurple),
+                  hintText: 'Search groups...',
+                  filled: true,
+                  fillColor: isDark ? Colors.grey[850] : Colors.white,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
               ),
-              onChanged: (_) => setState(() {}),
             ),
-          ),
+            const SizedBox(height: 10),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              decoration: InputDecoration(
-                labelText: "Filter by Category",
-                prefixIcon: Icon(Icons.filter_list,
-                    color: isDark ? Colors.white : Colors.deepPurple),
-                filled: true,
-                fillColor: isDark ? Colors.grey[800] : Colors.deepPurple.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'All', child: Text('All')),
-                DropdownMenuItem(value: 'Online Support', child: Text('Online Support')),
-                DropdownMenuItem(value: 'Organizations', child: Text('Organizations')),
-                DropdownMenuItem(value: 'Community Forums', child: Text('Community Forums')),
-                DropdownMenuItem(value: 'Youth Support', child: Text('Youth Support')),
-                DropdownMenuItem(value: 'Hotlines', child: Text('Hotlines')),
-              ],
-              onChanged: (value) => setState(() => _selectedCategory = value!),
-            ),
-          ),
+            _categoryChips(isDark),
+            const SizedBox(height: 8),
 
-          const SizedBox(height: 10),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('communities')
+                    .orderBy('title')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-          Expanded(
-            child: filteredGroups.isEmpty
-                ? Center(
-              child: Text(
-                "No community support groups found.",
-                style: TextStyle(
-                    fontSize: 16,
-                    color: isDark ? Colors.white70 : Colors.grey),
-              ),
-            )
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: filteredGroups.length,
-              itemBuilder: (context, index) {
-                final item = filteredGroups[index];
+                  if (snapshot.hasError) {
+                    return const Center(child: Text("Something went wrong"));
+                  }
 
-                return Card(
-                  color: isDark ? Colors.grey[850] : Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 5,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    leading: Icon(Icons.groups,
-                        color:
-                        isDark ? Colors.purpleAccent : Colors.deepPurple,
-                        size: 30),
-                    title: Text(
-                      item['name'],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: isDark ? Colors.white : Colors.deepPurple,
-                      ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
+                  final groups = snapshot.data!.docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return {
+                      'name': data['title'] ?? '',
+                      'description': data['description'] ?? '',
+                      'link': data['link'] ?? '',
+                      'category': data['category'] ?? 'Other',
+                    };
+                  }).toList();
+
+                  final filtered = groups.where((g) {
+                    final catMatch = _selectedCategories.contains('All') ||
+                        _selectedCategories.contains(g['category']);
+                    final searchMatch = _searchController.text.isEmpty ||
+                        g['name']
+                            .toLowerCase()
+                            .contains(_searchController.text.toLowerCase());
+                    return catMatch && searchMatch;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return Center(
                       child: Text(
-                        item['description'],
+                        "No results found.",
                         style: TextStyle(
-                          fontSize: 15,
-                          color: isDark ? Colors.white70 : Colors.black87,
-                        ),
+                            color: isDark ? Colors.white70 : Colors.black54),
                       ),
-                    ),
+                    );
+                  }
 
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                            icon: Icon(Icons.open_in_new,
-                                color: isDark
-                                    ? Colors.purpleAccent
-                                    : Colors.deepPurple),
-                            onPressed: () => _launchURL(item['link'])),
-                        IconButton(
-                            icon: Icon(Icons.edit,
-                                color: isDark
-                                    ? Colors.blueAccent
-                                    : Colors.blue),
-                            onPressed: () => _editGroup(item)),
-                        IconButton(
-                            icon: Icon(Icons.delete,
-                                color: Colors.redAccent),
-                            onPressed: () => _deleteGroup(item['id'])),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      return _buildGroupCard(filtered[index], isDark);
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
