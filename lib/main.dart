@@ -110,6 +110,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
