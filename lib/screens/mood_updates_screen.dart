@@ -1,15 +1,13 @@
-// mood_updates_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Global notifier for MusicScreen to detect current mood
 ValueNotifier<String> moodNotifier = ValueNotifier<String>("cheerful");
 
 class MoodUpdatesScreen extends StatefulWidget {
-  final String uid; // use uid consistently
+  final String uid;
 
   const MoodUpdatesScreen({super.key, required this.uid});
 
@@ -24,13 +22,10 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
   Map<String, int> _neutralCount = {};
   Map<String, List<String>> _dailyMoods = {};
   Map<String, double> _dailyMoodAverage = {};
-  Map<String, Map<String, String>> _hourlyMoods = {}; // store hourly moods
-
-  // Weekly & monthly tracking
+  Map<String, Map<String, String>> _hourlyMoods = {};
   Map<String, double> _weeklyMoodAverage = {};
   Map<String, double> _monthlyMoodAverage = {};
 
-  // Real-time mood message & counters
   String _moodMessage = "";
   int _happyCount = 0;
   int _sadCount = 0;
@@ -45,45 +40,72 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
   ];
 
   final List<String> negativeMoods = [
-    "😢 Sad",
-    "💔 Heartbroken",
-    "😞 Disappointed",
-    "😔 Lonely",
-    "😩 Overwhelmed",
-    "😕 Confused",
-    "😟 Anxious",
-    "😰 Stressed",
-    "😤 Frustrated",
-    "😠 Irritated",
-    "😡 Angry",
-    "😬 Nervous",
-    "😳 Embarrassed",
-    "😴 Tired",
-    "😫 Exhausted",
-    "😩 Hopeless",
-    "😶 Empty",
-    "😑 Bored",
-    "🤒 Unwell",
-    "🤯 Burned Out",
+    "😢 Sad", "💔 Heartbroken", "😞 Disappointed", "😔 Lonely", "😩 Overwhelmed",
+    "😕 Confused", "😟 Anxious", "😰 Stressed", "😤 Frustrated", "😠 Irritated",
+    "😡 Angry", "😬 Nervous", "😳 Embarrassed", "😴 Tired", "😫 Exhausted",
+    "😩 Hopeless", "😶 Empty", "😑 Bored", "🤒 Unwell", "🤯 Burned Out",
     "⚠️ Suicidal/Warning",
   ];
 
   final List<String> neutralMoods = [
-    "🤔 Reflective",
-    "😌 Thoughtful",
-    "😮 Surprised",
-    "😶 Indifferent",
-    "😐 Blank",
-    "🫤 Uncertain",
-    "🤫 Quiet",
-    "😅 Awkward",
-    "🤨 Skeptical",
-    "🤓 Focused",
-    "🤭 Amused",
+    "🤔 Reflective", "😌 Thoughtful", "😮 Surprised", "😶 Indifferent", "😐 Blank",
+    "🫤 Uncertain", "🤫 Quiet", "😅 Awkward", "🤨 Skeptical", "🤓 Focused", "🤭 Amused",
   ];
 
+  final Map<String, String> moodMeanings = {
+    // Positive meanings
+    "😊 Happy": "You are experiencing joy and emotional satisfaction. This often reflects contentment with recent events or relationships.",
+    "😇 Grateful": "You feel thankful and appreciative. Gratitude is linked to improved emotional well-being and resilience.",
+    "😌 Content": "You feel at ease and emotionally balanced. Nothing feels overwhelming right now.",
+    "😎 Confident": "You believe in your abilities and decisions. This mood supports motivation and self-growth.",
+    "🥳 Excited": "You are energized and looking forward to something positive or new.",
+    "😚 Loved": "You feel emotionally valued and cared for, which strengthens emotional security.",
+    "🤗 Hopeful": "You believe things can improve. Hope is a strong emotional buffer against stress.",
+    "🤩 Inspired": "You feel motivated by ideas, people, or goals that spark creativity or ambition.",
+    "😋 Playful": "You are relaxed and open to fun, humor, and light-hearted interactions.",
+    "🤠 Cheerful": "You feel upbeat and optimistic, often spreading positivity to others.",
+    "🧘 Calm": "Your emotions are steady and peaceful. Stress levels are low.",
+    "🙂 Neutral": "You feel emotionally steady without strong positive or negative feelings.",
+
+    // Negative meanings
+    "😢 Sad": "You may be feeling emotional pain or disappointment. This feeling is valid and deserves care.",
+    "💔 Heartbroken": "You are experiencing deep emotional loss or grief, often connected to relationships.",
+    "😞 Disappointed": "Your expectations were not met, leading to emotional letdown.",
+    "😔 Lonely": "You may feel emotionally disconnected or in need of companionship.",
+    "😩 Overwhelmed": "You may feel mentally or emotionally overloaded. Rest is important.",
+    "😕 Confused": "You are uncertain and seeking clarity or understanding.",
+    "😟 Anxious": "You may be worrying about future events or outcomes.",
+    "😰 Stressed": "Your mind and body may be under pressure from responsibilities or challenges.",
+    "😤 Frustrated": "You feel blocked or irritated due to unmet goals or obstacles.",
+    "😠 Irritated": "Small things may be bothering you more than usual.",
+    "😡 Angry": "You may feel a strong emotional reaction to perceived unfairness or hurt.",
+    "😬 Nervous": "You may feel uneasy or tense about an upcoming situation.",
+    "😳 Embarrassed": "You feel self-conscious about a situation or mistake.",
+    "😴 Tired": "Your body or mind needs rest.",
+    "😫 Exhausted": "You may be physically and emotionally drained.",
+    "😩 Hopeless": "You may feel discouraged or unable to see positive outcomes.",
+    "😶 Empty": "You may feel emotionally numb or disconnected.",
+    "😑 Bored": "You may be under-stimulated or craving engagement.",
+    "🤒 Unwell": "Your physical condition may be affecting your emotional state.",
+    "🤯 Burned Out": "Long-term stress may have reduced your energy and motivation.",
+    "⚠️ Suicidal/Warning": "This mood signals emotional distress. Immediate support and professional help are strongly recommended.",
+
+    // Neutral meanings
+    "🤔 Reflective": "You are thinking deeply about experiences, decisions, or emotions.",
+    "😌 Thoughtful": "You are calmly processing ideas or emotions.",
+    "😮 Surprised": "Something unexpected affected your emotional state.",
+    "😶 Indifferent": "You feel emotionally detached or unaffected.",
+    "😐 Blank": "You may feel mentally empty or emotionally paused.",
+    "🫤 Uncertain": "You may be unsure about a situation or decision.",
+    "🤫 Quiet": "You may be introspective or conserving emotional energy.",
+    "😅 Awkward": "You may feel slightly uncomfortable but not distressed.",
+    "🤨 Skeptical": "You are questioning or doubting something.",
+    "🤓 Focused": "You are mentally engaged and attentive.",
+    "🤭 Amused": "You feel quietly entertained or pleased.",
+  };
+
   Color _getMoodColor(String mood) {
-    if (positiveMoods.contains(mood)) return Colors.yellow.shade700;
+    if (positiveMoods.contains(mood)) return Colors.green.shade600;
     if (negativeMoods.contains(mood)) return Colors.red.shade400;
     if (neutralMoods.contains(mood)) return Colors.blue.shade400;
     return Colors.purple.shade300;
@@ -133,22 +155,16 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
         _neutralCountReal++;
       }
 
-      // Daily
       if (!_dailyMoods.containsKey(date)) _dailyMoods[date] = [];
       _dailyMoods[date]!.add(mood);
 
-      // Hourly
       if (!_hourlyMoods.containsKey(date)) _hourlyMoods[date] = {};
       _hourlyMoods[date]![hour] = mood;
 
-      // Weekly
       _weeklyMoodAverage[week] = (_weeklyMoodAverage[week] ?? 0) + _getMoodValue(mood);
-
-      // Monthly
       _monthlyMoodAverage[month] = (_monthlyMoodAverage[month] ?? 0) + _getMoodValue(mood);
     }
 
-    // Normalize weekly & monthly averages
     _weeklyMoodAverage.updateAll((key, value) {
       int count = docs.where((doc) {
         final ts = doc['date'] != null
@@ -169,10 +185,8 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
       return count > 0 ? value / count : 0;
     });
 
-    // Daily averages
     _dailyMoods.forEach((date, moods) {
-      double avg = moods.map((m) => _getMoodValue(m)).reduce((a, b) => a + b) /
-          moods.length;
+      double avg = moods.map((m) => _getMoodValue(m)).reduce((a, b) => a + b) / moods.length;
       _dailyMoodAverage[date] = avg;
     });
 
@@ -184,7 +198,6 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
       final sortedDates = _dailyMoods.keys.toList()..sort();
       final lastDate = sortedDates.last;
       final lastMoods = _dailyMoods[lastDate]!;
-
       String latestMood = lastMoods.isNotEmpty ? lastMoods.last : "cheerful";
       final lowerMood = latestMood.toLowerCase();
 
@@ -215,6 +228,7 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
         ),
       );
     }
+
     final uid = user!.uid;
 
     return Scaffold(
@@ -232,8 +246,9 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
             .orderBy('date', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
           final docs = snapshot.data!.docs;
           _updateMoodStats(docs);
 
@@ -243,10 +258,10 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Real-time mood message and counters
                   Card(
                     color: isDark ? Colors.deepPurple.shade700 : Colors.deepPurple.shade100,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -261,7 +276,7 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _moodCounterItem("Happy", _happyCount, Colors.yellow.shade700),
+                              _moodCounterItem("Happy", _happyCount, Colors.green.shade600),
                               _moodCounterItem("Neutral", _neutralCountReal, Colors.blue.shade400),
                               _moodCounterItem("Sad", _sadCount, Colors.red.shade400),
                             ],
@@ -270,23 +285,9 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 16),
-                  _buildCategoryChartCard("Overall Mood Overview", _moodCount, isDark),
-                  if (_positiveCount.isNotEmpty)
-                    _buildCategoryChartCard("Positive Moods", _positiveCount, isDark),
-                  if (_negativeCount.isNotEmpty)
-                    _buildCategoryChartCard("Negative Moods", _negativeCount, isDark),
-                  if (_neutralCount.isNotEmpty)
-                    _buildCategoryChartCard("Neutral / Reflective Moods", _neutralCount, isDark),
-                  const SizedBox(height: 16),
-                  if (_dailyMoods.isNotEmpty) _buildDailyMoodChart(isDark),
-                  _buildHourlyMoods(),
-                  const SizedBox(height: 16),
-                  if (_weeklyMoodAverage.isNotEmpty)
-                    _buildAggregateMoodChart("Weekly Mood Trend", _weeklyMoodAverage, isDark),
-                  const SizedBox(height: 16),
-                  if (_monthlyMoodAverage.isNotEmpty)
-                    _buildAggregateMoodChart("Monthly Mood Trend", _monthlyMoodAverage, isDark),
+                  _buildMoodMeaningSection(isDark),
                 ],
               ),
             ),
@@ -306,275 +307,95 @@ class _MoodUpdatesScreenState extends State<MoodUpdatesScreen> {
     );
   }
 
-  Widget _buildCategoryChartCard(String title, Map<String, int> data, bool isDark) {
+  Widget _buildMoodMeaningSection(bool isDark) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
+            Text("Mood Meanings & Interpretations",
                 style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black87)),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 160,
-              child: PieChart(
-                PieChartData(
-                  sections: _buildChartSections(data),
-                  borderData: FlBorderData(show: false),
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 30,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildMoodLegend(isDark),
+            _buildMoodGroup(
+                title: "Positive Moods",
+                moods: positiveMoods,
+                isDark: isDark,
+                color: Colors.green.shade600),
+            _buildMoodGroup(
+                title: "Neutral Moods",
+                moods: neutralMoods,
+                isDark: isDark,
+                color: Colors.blue.shade400),
+            _buildMoodGroup(
+                title: "Negative Moods",
+                moods: negativeMoods,
+                isDark: isDark,
+                color: Colors.red.shade400),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMoodLegend(bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _legendItem("Positive", Colors.yellow.shade700, isDark),
-        _legendItem("Neutral", Colors.blue.shade400, isDark),
-        _legendItem("Negative", Colors.red.shade400, isDark),
-      ],
+  Widget _buildMoodGroup({
+    required String title,
+    required List<String> moods,
+    required bool isDark,
+    required Color color,
+  }) {
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      collapsedIconColor: color,
+      iconColor: color,
+      title: Text(
+        "$title (${moods.length})",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+      ),
+      children: moods.map((mood) {
+        return _buildMoodItem(mood, isDark);
+      }).toList(),
     );
   }
 
-  Widget _legendItem(String label, Color color, bool isDark) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
+  Widget _buildMoodItem(String mood, bool isDark) {
+    final meaning = moodMeanings[mood] ?? "No interpretation available.";
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: isDark ? _getMoodColor(mood).withOpacity(0.2)
+            : _getMoodColor(mood).withOpacity(0.12),
+      ),
+      child: ListTile(
+        title: Text(
+          mood,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-
-  List<PieChartSectionData> _buildChartSections(Map<String, int> dataMap) {
-    final total = dataMap.values.fold(0, (a, b) => a + b);
-    return dataMap.entries.map((entry) {
-      final percentage = total == 0 ? 0.0 : (entry.value / total) * 100;
-      final color = _getMoodColor(entry.key);
-      return PieChartSectionData(
-        color: color,
-        value: percentage,
-        title: '${percentage.toStringAsFixed(1)}%',
-        radius: 50,
-        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-      );
-    }).toList();
-  }
-
-  Widget _buildDailyMoodChart(bool isDark) {
-    if (_hourlyMoods.isEmpty) return const SizedBox.shrink();
-    final dates = _hourlyMoods.keys.toList()..sort();
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text("Hourly Mood Trend",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 240,
-              child: LineChart(LineChartData(
-                lineBarsData: _buildDailyMoodLines(),
-                minY: -1.5,
-                maxY: 1.5,
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final color = isDark ? Colors.white70 : Colors.black87;
-                        if (value == -1) return Text("Neg", style: TextStyle(color: color));
-                        if (value == 0) return Text("Neu", style: TextStyle(color: color));
-                        if (value == 1) return Text("Pos", style: TextStyle(color: color));
-                        return Text('', style: TextStyle(color: color));
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        int index = value.toInt();
-                        String date = "";
-                        String hour = "";
-                        int count = 0;
-                        for (var d in dates) {
-                          final hours = _hourlyMoods[d]!.keys.toList()..sort();
-                          if (index < count + hours.length) {
-                            date = d.substring(5); // MM-dd
-                            hour = hours[index - count];
-                            break;
-                          }
-                          count += hours.length;
-                        }
-                        if (date.isNotEmpty && hour.isNotEmpty) {
-                          return Text("$date\n$hour", style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 9), textAlign: TextAlign.center);
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                ),
-                gridData: FlGridData(show: true),
-                borderData: FlBorderData(show: false),
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    tooltipBorderRadius: BorderRadius.circular(8),
-                    getTooltipColor: (touchedSpots) => isDark ? Colors.grey.shade900 : Colors.black87,
-                    getTooltipItems: (spots) {
-                      return spots.map((spot) {
-                        int index = spot.x.toInt();
-                        int count = 0;
-                        String date = "";
-                        String hour = "";
-                        for (var d in dates) {
-                          final hours = _hourlyMoods[d]!.keys.toList()..sort();
-                          if (index < count + hours.length) {
-                            date = d;
-                            hour = hours[index - count];
-                            break;
-                          }
-                          count += hours.length;
-                        }
-                        final mood = _hourlyMoods[date]![hour]!;
-                        return LineTooltipItem("$date\n$hour\nMood: $mood", const TextStyle(color: Colors.greenAccent));
-                      }).toList();
-                    },
-                  ),
-                ),
-              )),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            meaning,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white70 : Colors.black87,
             ),
-          ],
+          ),
         ),
       ),
     );
-  }
-
-  List<LineChartBarData> _buildDailyMoodLines() {
-    List<LineChartBarData> lines = [];
-    _hourlyMoods.forEach((date, hourlyMap) {
-      final sortedHours = hourlyMap.keys.toList()..sort();
-      List<FlSpot> spots = [];
-      for (var i = 0; i < sortedHours.length; i++) {
-        final mood = hourlyMap[sortedHours[i]]!;
-        spots.add(FlSpot(i.toDouble(), _getMoodValue(mood).toDouble()));
-      }
-      lines.add(LineChartBarData(
-        spots: spots,
-        isCurved: true,
-        barWidth: 3,
-        color: Colors.orangeAccent,
-        dotData: FlDotData(show: true),
-        belowBarData: BarAreaData(show: false),
-      ));
-    });
-    return lines;
-  }
-
-  Widget _buildAggregateMoodChart(String title, Map<String, double> data, bool isDark) {
-    if (data.isEmpty) return const SizedBox.shrink();
-
-    final sortedKeys = data.keys.toList()..sort();
-    List<FlSpot> spots = [];
-    for (var i = 0; i < sortedKeys.length; i++) {
-      spots.add(FlSpot(i.toDouble(), data[sortedKeys[i]]!.toDouble()));
-    }
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: isDark ? Colors.deepPurple.shade800 : Colors.deepPurple.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(title,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 240,
-              child: LineChart(
-                LineChartData(
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      barWidth: 3,
-                      color: Colors.orangeAccent,
-                      dotData: FlDotData(show: true),
-                      belowBarData: BarAreaData(show: false),
-                    ),
-                  ],
-                  minY: -1.5,
-                  maxY: 1.5,
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final color = isDark ? Colors.white70 : Colors.black87;
-                          if (value == -1) return Text("Neg", style: TextStyle(color: color));
-                          if (value == 0) return Text("Neu", style: TextStyle(color: color));
-                          if (value == 1) return Text("Pos", style: TextStyle(color: color));
-                          return Text('', style: TextStyle(color: color));
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          int index = value.toInt();
-                          if (index >= 0 && index < sortedKeys.length) {
-                            return Text(sortedKeys[index],
-                                style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 10),
-                                textAlign: TextAlign.center);
-                          }
-                          return const Text('');
-                        },
-                      ),
-                    ),
-                  ),
-                  gridData: FlGridData(show: true),
-                  borderData: FlBorderData(show: false),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHourlyMoods() {
-    return const SizedBox.shrink(); // placeholder; keep your original implementation if any
   }
 }

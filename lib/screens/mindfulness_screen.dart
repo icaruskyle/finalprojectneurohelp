@@ -23,28 +23,36 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
   bool isRunning = false;
   int sessionCount = 0;
   late String uid;
+  int get totalSteps => steps.length;
 
-  // TTS
   final FlutterTts tts = FlutterTts();
 
-  // Audio Player
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Meditation Steps
   final List<String> steps = [
-    "Find a quiet spot and sit comfortably.",
-    "Take a deep breath in... and out.",
-    "Notice your surroundings — the sounds, colors, and sensations.",
-    "Observe your thoughts without judgment.",
-    "Focus on this present moment — you are safe and calm.",
-    "Well done 🌿 Take a moment to thank yourself for this pause."
+    "Find a quiet and comfortable position. Sit or lie down.",
+    "Gently close your eyes if you feel comfortable.",
+    "Take a slow, deep breath in through your nose.",
+    "Feel your lungs expanding as you inhale.",
+    "Slowly breathe out through your mouth, releasing tension.",
+    "Notice the weight of your body against the chair or floor.",
+    "Bring attention to your hands. Feel their warmth and texture.",
+    "Relax your shoulders. Let them gently drop.",
+    "Focus on your breathing. Inhale… and exhale.",
+    "Observe the sounds around you without judging them.",
+    "If your mind wanders, gently bring it back to your breath.",
+    "Scan your body from head to toe, releasing any tension.",
+    "Feel your feet grounded and connected to the earth.",
+    "Acknowledge your thoughts, then let them pass.",
+    "Stay present in this moment. You are safe and calm.",
+    "Take one final deep breath in… and slowly breathe out.",
+    "Well done 🌿 Thank yourself for this mindful pause."
   ];
 
   final List<Offset> _particles = [];
   final random = Random();
 
-  // SESSION SELECTOR
-  final List<int> sessionOptions = [5, 10, 15]; // minutes
+  final List<int> sessionOptions = [5, 10, 15];
   int selectedMinutes = 5;
   int _stepDurationSeconds = 5;
 
@@ -53,21 +61,22 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
     super.initState();
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) uid = user.uid;
+    uid = user?.uid ?? "";
 
     tts.setLanguage("en-US");
     tts.setSpeechRate(0.45);
 
-    // Initialize particles
     for (int i = 0; i < 50; i++) {
       _particles.add(Offset(random.nextDouble(), random.nextDouble()));
     }
+
     _particleController =
     AnimationController(vsync: this, duration: const Duration(seconds: 10))
       ..repeat();
 
     _fetchSessionCount();
   }
+
 
   Future<void> _fetchSessionCount() async {
     if (uid.isEmpty) return;
@@ -89,7 +98,6 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
   void startMindfulness() async {
     if (isRunning) return;
 
-    // Play background audio
     await _audioPlayer.setReleaseMode(ReleaseMode.loop);
     await _audioPlayer.play(AssetSource("audio/Healing.mp3"));
 
@@ -99,11 +107,13 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
     });
     _speak(steps[step]);
 
-    DateTime startTime = DateTime.now();
+    DateTime startTime = DateTime.now(  );
     _timer?.cancel();
 
-    int totalSteps = steps.length;
-    _stepDurationSeconds = (selectedMinutes * 60 ~/ totalSteps).clamp(5, 60);
+    _stepDurationSeconds =
+        (selectedMinutes * 60 ~/ totalSteps).clamp(7, 90);
+
+
 
     _timer = Timer.periodic(Duration(seconds: _stepDurationSeconds), (timer) async {
       if (!mounted || !isRunning) {
@@ -279,7 +289,6 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
 
                     const SizedBox(height: 30),
 
-                    /// STEP DISPLAY
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 600),
                       child: Text(
@@ -295,7 +304,6 @@ class _MindfulnessScreenState extends State<MindfulnessScreen>
 
                     const SizedBox(height: 20),
 
-                    /// START / RESET BUTTONS
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

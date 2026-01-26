@@ -12,12 +12,16 @@ import 'heneuro_tab.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'theme_notifier.dart'; // path depends on your project structure
+import 'theme_notifier.dart';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
+
 
 class DashboardScreen extends StatefulWidget {
-  final String username;
-  const DashboardScreen({super.key, required this.username});
+  final String name;
+  const DashboardScreen({super.key, required this.name});
+
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -27,11 +31,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
   String? _userAvatar;
+  String _fullName = "";
 
   @override
   void initState() {
     super.initState();
     _loadUserAvatar();
+    _loadFullName();
+    _randomQuote = _welcomeQuotes[Random().nextInt(_welcomeQuotes.length)];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showWelcomePopup();
+    });
+  }
+  late String _randomQuote;
+  final List<String> _welcomeQuotes = [
+  "“You don’t have to be okay all the time. This is a safe space.”",
+  "“Your feelings are valid. Take things one step at a time.”",
+  "“Small steps still move you forward.”",
+  "“It’s okay to pause and take care of yourself.”",
+  "“Healing is not linear. Be gentle with yourself.”",
+  "“You are doing better than you think.”",
+];
+
+
+Future<void> _loadFullName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        _fullName = doc['fullName'];
+      });
+    }
   }
 
   Future<void> _loadUserAvatar() async {
@@ -46,7 +82,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _pageController.jumpToPage(index);
   }
 
-  // ------------------ Colors ------------------
+void _showWelcomePopup() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Icon(Icons.favorite, color: Colors.deepPurple, size: 50),
+                  const SizedBox(height: 15),
+                  Text(
+                    "Welcome to NeuroHelp 💜",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple.shade800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _randomQuote,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+
+            Positioned(
+              top: 5,
+              right: 5,
+              child: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
   Color primary(bool isDarkMode) => Colors.deepPurple;
   Color background(bool isDarkMode) => isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
   Color cardColor(bool isDarkMode) => isDarkMode ? const Color(0xFF2C2C2E) : Colors.white;
@@ -54,7 +146,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color textSecondary(bool isDarkMode) => isDarkMode ? Colors.white70 : Colors.black87;
   Color accent(bool isDarkMode) => isDarkMode ? Colors.purpleAccent : Colors.deepPurple;
 
-  // ---------------- HOME TAB ----------------
   Widget _buildHome(bool isDarkMode) {
     return Container(
       color: background(isDarkMode),
@@ -91,11 +182,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("Welcome back,", style: TextStyle(color: textSecondary(isDarkMode), fontSize: 16)),
-                  Text(widget.username,
-                      style: TextStyle(
-                          color: textPrimary(isDarkMode),
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    _fullName.isEmpty ? "Loading..." : _fullName,
+                    style: TextStyle(
+                      color: textPrimary(isDarkMode),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -165,8 +259,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-  // ---------------- EXPLORE TAB ----------------
   Widget _buildExplore(bool isDarkMode) {
     return Container(
       color: background(isDarkMode),
@@ -204,7 +296,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------------- OTHERS TAB ----------------
   Widget _buildJournalMood(bool isDarkMode) {
     return Container(
       color: background(isDarkMode),
@@ -259,7 +350,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       HeneuroTab(isDarkMode: isDarkMode),
       _buildJournalMood(isDarkMode),
       ProfileTab(
-        username: widget.username,
+        username: _fullName,
         isDarkMode: isDarkMode,
         onToggleTheme: (value) => themeNotifier.toggleTheme(value),
       )
