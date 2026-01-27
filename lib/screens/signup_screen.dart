@@ -28,7 +28,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmController = TextEditingController();
 
-  // Password Strength
   String passwordStrength = "";
   Color strengthColor = Colors.red;
 
@@ -83,7 +82,6 @@ class _SignupScreenState extends State<SignupScreen> {
         title: "Weak Password",
         body: "Please create a stronger password.",
       );
-      setState(() => _isLoading = false);
       return;
     }
 
@@ -93,22 +91,31 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 🔍 Check Firestore first to prevent duplicates
       final existingUser = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: email)
+          .limit(1)
           .get();
 
       if (existingUser.docs.isNotEmpty) {
-        await _notificationService.showNotification(
-          title: "Already Registered",
-          body: "This email is already registered. Please login instead.",
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
+        final provider = existingUser.docs.first.data()['provider'] ?? '';
 
-      // Create user in Firebase Auth
+        if (provider == 'password') {
+          await _notificationService.showNotification(
+            title: "Account Exists",
+            body: "This email is already registered with Email & Password. Please login instead.",
+          );
+          return;
+        }
+
+        if (provider == 'google') {
+          await _notificationService.showNotification(
+            title: "Google Account Detected",
+            body: "This email is registered using Google. Please sign in with Google.",
+          );
+          return;
+        }
+      }
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -118,25 +125,24 @@ class _SignupScreenState extends State<SignupScreen> {
       if (user == null) throw Exception("User creation failed");
 
       await user.sendEmailVerification();
+      await FirebaseAuth.instance.signOut();
 
-
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snapshot = await userDoc.get();
-
-      if (!snapshot.exists) {
-        await userDoc.set({
-          'fullName': fullController.text.trim(),
-          'email': email,
-          'contactNumber': numController.text.trim(),
-          'agreedToTerms': _isAgreed,
-          'provider': 'password',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'fullName': fullController.text.trim(),
+        'email': email,
+        'contactNumber': numController.text.trim(),
+        'agreedToTerms': _isAgreed,
+        'provider': 'password',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       await _notificationService.showNotification(
-        title: "Welcome 🎉",
-        body: "Hi ${fullController.text.trim()}, your account was created successfully!",
+        title: "Verify Your Email 📧",
+        body:
+        "We sent a verification email to $email.\nPlease verify before logging in.",
       );
 
       if (!mounted) return;
@@ -167,6 +173,7 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _isLoading = false);
     }
   }
+
 
 
   Future<void> _signInWithGoogle() async {
@@ -245,9 +252,9 @@ class _SignupScreenState extends State<SignupScreen> {
         title: const Text("Privacy Policy & Terms"),
         content: const SingleChildScrollView(
           child: Text(
-            "1. Your privacy is important.\n"
-                "2. Terms and conditions apply.\n"
-                "3. Make sure to read everything carefully before agreeing.\n\n"
+              "1. Your privacy is important.\n"
+                  "2. Terms and conditions apply.\n"
+                  "3. Make sure to read everything carefully before agreeing.\n\n"
 
           ),
         ),
@@ -365,20 +372,25 @@ class _SignupScreenState extends State<SignupScreen> {
                         Checkbox(
                           value: _isAgreed,
                           activeColor: Colors.deepPurple,
-                          onChanged: _hasReadPolicy
-                              ? (value) => setState(() => _isAgreed = value ?? false)
-                              : null,
+                          onChanged: (value) async {
+                            if (!_hasReadPolicy) {
+                              await _notificationService.showNotification(
+                                title: "Read Required",
+                                body: "Please read the Privacy Policy & Terms first.",
+                              );
+                              return;
+                            }
+                            setState(() => _isAgreed = value ?? false);
+                          },
                         ),
                         const Expanded(
-                          child: Text(
-                            "I agree to the Privacy Policy and Terms of Service",
-                            style: TextStyle(fontSize: 14),
-                          ),
+                          child: Text("I agree to the Privacy Policy & Terms"),
                         ),
                       ],
                     ),
 
                     const SizedBox(height: 20),
+
                     ElevatedButton(
                       onPressed: (!_isAgreed || _isLoading)
                           ? null
@@ -397,8 +409,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             borderRadius: BorderRadius.circular(12)),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(
-                          color: Colors.white)
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                         "Sign Up",
                         style: TextStyle(

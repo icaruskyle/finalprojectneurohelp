@@ -29,7 +29,29 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // 🔐 Check provider first
+
     setState(() => _isLoading = true);
+
+    final query = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      final provider = query.docs.first.data()['provider'];
+
+      if (provider == 'google') {
+        _showNotify(
+          "This account was created using Google. Please login with Google.",
+          Colors.orange,
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+    }
+
 
     try {
       final userCredential = await FirebaseAuth.instance
@@ -43,11 +65,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (!user.emailVerified) {
-        _showVerificationDialog(user);
+        _showVerificationDialog(user); // 👈 USE THIS
+        setState(() => _isLoading = false);
         return;
       }
 
+
       await saveUserToFirestore(user);
+
 
       _showNotify("Login successful! 🎉", Colors.green);
 
@@ -82,20 +107,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+
   Future<void> saveUserToFirestore(User user) async {
-
-    final uid = user.uid;
-
     await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(user.uid)
         .set({
       'email': user.email,
-      'name': user.displayName ?? '',
-      'providers': user.providerData.map((p) => p.providerId).toList(),
+      'provider': 'password', // 👈 FIXED
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
+
 
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
@@ -104,11 +127,43 @@ class _LoginScreenState extends State<LoginScreen> {
       final GoogleSignIn googleSignIn = GoogleSignIn();
       await googleSignIn.signOut();
 
-      final GoogleSignInAccount? googleUser =
-      await googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      if (googleUser == null) return;
+      final email = googleUser.email;
 
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+// ❌ NOT SIGNED UP
+      if (query.docs.isEmpty) {
+        _showNotify(
+          "No account found. Please sign up first.",
+          Colors.redAccent,
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+// 🔐 CHECK PROVIDER
+      final provider = query.docs.first.data()['provider'];
+
+      if (provider != 'google') {
+        _showNotify(
+          "This account was created using Email & Password.",
+          Colors.orange,
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // ✅ ALLOWED → continue Google auth
       final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
@@ -120,35 +175,32 @@ class _LoginScreenState extends State<LoginScreen> {
       await FirebaseAuth.instance.signInWithCredential(credential);
 
       final user = userCredential.user;
+      if (user == null) throw Exception("Google login failed");
 
-      if (user != null) {
-        await saveUserToFirestore(user);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'email': user.email,
+        'provider': 'google',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DashboardScreen(
-              name: user.email ?? "Google User",
-            ),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(
+            name: user.email ?? "Google User",
           ),
-        );
-
-      }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'account-exists-with-different-credential') {
-        _showNotify(
-          "This email is registered using Email & Password.",
-          Colors.orange,
-        );
-      } else {
-        _showNotify("Google login failed", Colors.redAccent);
-      }
+        ),
+      );
     } catch (e) {
       _showNotify("Google login failed", Colors.redAccent);
     } finally {
       setState(() => _isLoading = false);
     }
   }
+
 
   void _showVerificationDialog(User user) {
     showDialog(

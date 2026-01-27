@@ -35,9 +35,13 @@ class _EventsScreenState extends State<EventsScreen> {
   ];
 
   Future<void> _launchURL(String url) async {
+    if (url.isEmpty) return;
+
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw Exception("Could not launch $url");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open link")),
+      );
     }
   }
 
@@ -86,18 +90,29 @@ class _EventsScreenState extends State<EventsScreen> {
               Text(
                 event["title"] ?? "No Title",
                 style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: color),
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
               const SizedBox(height: 10),
-              Text(event["description"] ?? "No Description"),
+              Text(
+                event["description"] ?? "No Description",
+                style: TextStyle(
+                  color: widget.isDarkMode
+                      ? Colors.grey[200]
+                      : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => _launchURL(event["link"] ?? ""),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.open_in_new),
+                label: const Text("Open Link"),
+                onPressed: event["link"] == null || event["link"].isEmpty
+                    ? null
+                    : () => _launchURL(event["link"]),
                 style: ElevatedButton.styleFrom(backgroundColor: color),
-                child: const Text("Open Link"),
-              )
+              ),
             ],
           ),
         );
@@ -149,11 +164,13 @@ class _EventsScreenState extends State<EventsScreen> {
           final filtered = events.where((event) {
             final matchTime = matchTimeFilter(event["rawDate"]);
             final matchCat =
-                _selectedCategory == "All" || event["category"] == _selectedCategory;
+                _selectedCategory == "All" ||
+                    event["category"] == _selectedCategory;
             final matchSearch = event["title"]
                 .toString()
                 .toLowerCase()
                 .contains(_searchController.text.toLowerCase());
+
             return matchTime && matchCat && matchSearch;
           }).toList();
 
@@ -171,8 +188,9 @@ class _EventsScreenState extends State<EventsScreen> {
                         ? Colors.grey[800]
                         : Colors.deepPurple.shade50,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide.none),
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -182,25 +200,67 @@ class _EventsScreenState extends State<EventsScreen> {
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final item = filtered[index];
-                    final color =
-                        _categoryColors[item["category"]] ?? Colors.deepPurple;
+                    final color = _categoryColors[item["category"]] ??
+                        Colors.deepPurple;
 
                     return ExpansionTile(
+                      backgroundColor:
+                      isDark ? Colors.grey[850] : Colors.white,
+                      collapsedBackgroundColor:
+                      isDark ? Colors.grey[900] : Colors.white,
+                      iconColor: color,
+                      collapsedIconColor: color,
+                      textColor: color,
+                      collapsedTextColor: color,
                       leading: Icon(Icons.event, color: color),
                       title: Text(
                         item["title"],
-                        style: TextStyle(
-                            color: color, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                      subtitle: Text(item["category"]),
+                      subtitle: Text(
+                        item["category"],
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.grey[300]
+                              : Colors.grey[700],
+                        ),
+                      ),
                       children: [
                         Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Text(item["description"]),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Text(
+                            item["description"],
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.grey[200]
+                                  : Colors.black87,
+                            ),
+                          ),
                         ),
-                        TextButton(
-                          onPressed: () => _showEventDetails(item, color),
-                          child: const Text("View Details"),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton.icon(
+                              icon: const Icon(Icons.info_outline),
+                              label: const Text("Details"),
+                              onPressed: () =>
+                                  _showEventDetails(item, color),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              icon: const Icon(Icons.open_in_new),
+                              label: const Text("View Link"),
+                              onPressed: item["link"] == null ||
+                                  item["link"].isEmpty
+                                  ? null
+                                  : () => _launchURL(item["link"]),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
                         ),
                       ],
                     );
