@@ -28,16 +28,14 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   int sessionCount = 0;
   bool isRunning = false;
 
-  // AI VOICE
   final FlutterTts tts = FlutterTts();
 
   @override
   void initState() {
     super.initState();
 
-    // Setup AI voice
     tts.setLanguage("en-US");
-    tts.setSpeechRate(0.45); // slow, meditation vibe
+    tts.setSpeechRate(0.45);
 
     for (int i = 0; i < 50; i++) {
       _particles.add(Offset(random.nextDouble(), random.nextDouble()));
@@ -71,7 +69,7 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
   }
 
   void startBreathing() {
-    if (isRunning) return; // prevent double tap
+    if (isRunning) return;
 
     setState(() {
       isRunning = true;
@@ -258,7 +256,6 @@ class _BreathingExerciseScreenState extends State<BreathingExerciseScreen>
                   ),
                   const SizedBox(height: 40),
 
-                  /// ⬇ FIXED START / STOP BUTTON
                   ElevatedButton.icon(
                     onPressed: () {
                       isRunning ? stopBreathing() : startBreathing();

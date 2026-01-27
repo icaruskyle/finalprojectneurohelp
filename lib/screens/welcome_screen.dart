@@ -12,8 +12,8 @@ class WelcomeScreen extends StatelessWidget {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              Color(0xFFB39DDB), // Light purple
-              Color(0xFF7E57C2), // Deeper purple
+              Color(0xFFB39DDB),
+              Color(0xFF7E57C2),
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -24,7 +24,6 @@ class WelcomeScreen extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
 
-              // App logo
               AnimatedOpacity(
                 opacity: 1,
                 duration: const Duration(seconds: 2),

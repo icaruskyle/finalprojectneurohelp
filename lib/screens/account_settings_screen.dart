@@ -69,7 +69,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 
   void _scheduleAllNotifications() {
-    // DAILY
     _notificationService.scheduleDailyNotification(
       title: _selectedLanguage == 'Filipino'
           ? '💜 Paalala mula sa NeuroHelp'
@@ -80,7 +79,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       time: _dailyTime,
     );
 
-    // HOURLY MOOD UPDATE
     _notificationService.scheduleHourlyMoodNotification();
   }
 
@@ -95,10 +93,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     await prefs.setBool('notificationsEnabled', value);
 
     if (value) {
-      // Schedule notifications
       _scheduleAllNotifications();
 
-      // Instant local notification confirming activation
       _notificationService.showNotification(
         title: "🔔 NeuroHelp Notifications Enabled",
         body: "We will remind you hourly with mood updates and daily reminders.",
@@ -209,7 +205,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           elevation: 4,
           child: Column(
             children: [
-              // 🔔 NOTIFICATIONS
               SwitchListTile(
                 secondary: const Icon(Icons.notifications, color: Colors.deepPurple),
                 title: Text(
@@ -245,7 +240,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
               const Divider(),
 
-              // 🔒 2FA
               SwitchListTile(
                 secondary: const Icon(Icons.security, color: Colors.deepPurple),
                 title: Text(
@@ -259,7 +253,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
               const Divider(),
 
-              // 🌐 Language
               ListTile(
                 leading: const Icon(Icons.language, color: Colors.deepPurple),
                 title: Text(

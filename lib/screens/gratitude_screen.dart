@@ -1,4 +1,3 @@
-// gratitude_feature.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,8 +6,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-/// Wellness-style Gratitude screen with 3-item input + history page.
-/// Copy this file into your project and add routing to GratitudeHistoryScreen.
 class GratitudeScreen extends StatefulWidget {
   const GratitudeScreen({super.key});
 
@@ -27,7 +24,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
   FlutterLocalNotificationsPlugin();
 
-  // rotating prompts
   final List<String> _prompts = [
     "What made you smile today?",
     "Who helped you this week?",
@@ -57,7 +53,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   }
 
   void _setRandomPrompts() {
-    // choose 3 different prompts
     final copy = List<String>.from(_prompts);
     copy.shuffle(_rnd);
     setState(() {
@@ -67,7 +62,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
     });
   }
 
-  // ---------- Local Notifications ----------
   void _initNotifications() async {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Manila'));
@@ -108,7 +102,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   }
 
 
-  // ---------- Save all three as one entry ----------
   Future<void> _saveAll() async {
     final a = _c1.text.trim();
     final b = _c2.text.trim();
@@ -135,7 +128,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // clear inputs and rotate prompts
       _c1.clear();
       _c2.clear();
       _c3.clear();
@@ -149,7 +141,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
     }
   }
 
-  // ---------- Helper: top overlay notification ----------
   void _showTopNotification(String message, {bool isError = false}) {
     final overlay = Overlay.of(context);
     if (overlay == null) return;
@@ -179,7 +170,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
     Future.delayed(const Duration(seconds: 2)).then((_) => overlayEntry.remove());
   }
 
-  // ---------- Navigate to History ----------
   void _openHistory() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (ctx) => GratitudeHistoryScreen(uid: uid)),
@@ -286,7 +276,7 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
 
                 const SizedBox(height: 18),
 
-                // inputs (soft cards)
+
                 _buildInputCard(_c1, _prompt1, isDark),
                 const SizedBox(height: 12),
                 _buildInputCard(_c2, _prompt2, isDark),
@@ -295,7 +285,7 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
 
                 const SizedBox(height: 18),
 
-                // save button
+
                 Row(
                   children: [
                     Expanded(
@@ -325,7 +315,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
 
                 const SizedBox(height: 20),
 
-                // quick tips / small CTA
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -364,7 +353,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
 
                 const SizedBox(height: 30),
 
-                // history preview header
                 Row(
                   children: [
                     const Expanded(
@@ -384,7 +372,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
                   ],
                 ),
 
-                // small preview list (3 latest)
                 SizedBox(
                   height: 260,
                   child: StreamBuilder<QuerySnapshot>(
@@ -435,7 +422,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
     );
   }
 
-  // small input card widget
   Widget _buildInputCard(TextEditingController c, String prompt, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -501,7 +487,6 @@ class _GratitudeScreenState extends State<GratitudeScreen> {
   }
 }
 
-/// Separate History Screen (full list + edit/delete/star)
 class GratitudeHistoryScreen extends StatelessWidget {
   final String uid;
   const GratitudeHistoryScreen({super.key, required this.uid});
@@ -658,7 +643,7 @@ class _HistoryCardState extends State<_HistoryCard> {
   }
 
   void _showTop(String text) {
-    final isDark = Theme.of(context).brightness == Brightness.dark; // <-- add this
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final overlay = Overlay.of(context);
     if (overlay == null) return;
 

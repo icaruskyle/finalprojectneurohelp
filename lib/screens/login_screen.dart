@@ -29,8 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 🔐 Check provider first
-
     setState(() => _isLoading = true);
 
     final query = await FirebaseFirestore.instance
@@ -65,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (!user.emailVerified) {
-        _showVerificationDialog(user); // 👈 USE THIS
+        _showVerificationDialog(user);
         setState(() => _isLoading = false);
         return;
       }
@@ -107,14 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-
   Future<void> saveUserToFirestore(User user) async {
     await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .set({
       'email': user.email,
-      'provider': 'password', // 👈 FIXED
+      'provider': 'password',
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -141,7 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
           .limit(1)
           .get();
 
-// ❌ NOT SIGNED UP
       if (query.docs.isEmpty) {
         _showNotify(
           "No account found. Please sign up first.",
@@ -151,7 +147,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-// 🔐 CHECK PROVIDER
       final provider = query.docs.first.data()['provider'];
 
       if (provider != 'google') {
@@ -163,7 +158,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // ✅ ALLOWED → continue Google auth
       final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
