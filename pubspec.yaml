@@ -67,6 +67,7 @@ flutter:
     - assets/sign_up.png
     - assets/sign_in.png
 
+
 flutter_launcher_icons:
   android: true
   ios: true
