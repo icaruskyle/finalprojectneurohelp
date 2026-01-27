@@ -1,10 +1,7 @@
-// self_help_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'theme_notifier.dart'; // adjust path if needed
-
-// Import your screens
+import 'theme_notifier.dart';
 import 'breathing_exercise_screen.dart';
 import 'mindfulness_screen.dart';
 import 'journaling_screen.dart';
@@ -15,13 +12,10 @@ class SelfHelpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get current user's uid (if needed by routes)
     final String uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // READ GLOBAL THEME
     final isDarkMode = Provider.of<ThemeNotifier>(context).isDarkMode;
 
-    // Dynamic colors
     final Color accent = isDarkMode ? Colors.purpleAccent : Colors.deepPurple;
     final Color tileBg = isDarkMode ? const Color(0xFF14141A) : Colors.white.withOpacity(0.92);
     final Color tileShadow = isDarkMode ? Colors.black54 : Colors.black26;
@@ -53,7 +47,7 @@ class SelfHelpScreen extends StatelessWidget {
         "title": "Gratitude List",
         "desc": "Reflect on things that make you thankful today.",
         "icon": Icons.favorite,
-        "route": GratitudeScreen(), // pass uid if needed
+        "route": GratitudeScreen(),
       },
     ];
 
@@ -65,7 +59,6 @@ class SelfHelpScreen extends StatelessWidget {
         foregroundColor: isDarkMode ? Colors.white : Colors.white,
       ),
 
-      // Background gradient adapts to theme
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

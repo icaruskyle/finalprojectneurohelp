@@ -392,7 +392,7 @@ void _showWelcomePopup() {
           controller: _pageController,
           onPageChanged: (index) async {
             setState(() => _selectedIndex = index);
-            await _loadUserAvatar(); // <-- updates avatar immediately
+            await _loadUserAvatar();
           },
           children: pages,
         ),

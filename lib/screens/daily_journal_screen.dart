@@ -46,10 +46,8 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
           .doc(uid)
           .collection('mood_history');
 
-      // Detect suicidal risk
       final suicidalDetected = _detectSuicidalRisk(text);
 
-      // Fetch birthdate
       final userDoc =
       await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
@@ -60,10 +58,10 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
         birthDate = (userDoc.data()!['birthDate'] as Timestamp).toDate();
       }
 
-      // AI mood prediction
+
       String mood = await ai.predictMood(text);
 
-      // Age-based adjustment
+
       if (birthDate != null) {
         final adjusted = _adjustMoodBasedOnAge(text, birthDate);
         if (adjusted.isNotEmpty) mood = adjusted;
@@ -71,21 +69,21 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
 
       final date = DateTime.now().toIso8601String();
 
-      // Save journal
+
       final journalDocRef = await journalRef.add({
         'text': text,
         'mood': mood,
         'date': date,
       });
 
-      // Save mood history
+
       await moodHistoryRef.add({
         'mood': mood,
         'date': date,
         'journalId': journalDocRef.id,
       });
 
-      // Save
+
       if (suicidalDetected) {
         await _showSuicidalAlertDialog();
       } else {
@@ -109,7 +107,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     }
   }
 
-  // Music Pop Up
+
   Future<void> _showCalmingMusicPrompt() async {
     if (!mounted || user == null) return;
 
@@ -182,7 +180,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     return "";
   }
 
-  // Delete Entry
+
   Future<void> _deleteEntry(String journalId) async {
     if (user == null) return;
 
@@ -224,7 +222,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     }
   }
 
-  //Alert
   Future<void> _showSuicidalAlertDialog() async {
     const helpline = "+15551234567";
     const fallbackUrl = "https://findahelpline.com";
@@ -270,7 +267,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     );
   }
 
-  // Helpers
+
   Future<void> _callNumber(String number) async {
     final uri = Uri.parse('tel:$number');
     if (await canLaunchUrl(uri)) {
@@ -292,7 +289,6 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     );
   }
 
-  // ================= SUICIDAL DETECTION =================
   bool _detectSuicidalRisk(String text) {
     final lower = text.toLowerCase();
     final critical = [
@@ -307,7 +303,7 @@ class _DailyJournalScreenState extends State<DailyJournalScreen> {
     return critical.any((p) => lower.contains(p));
   }
 
-  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

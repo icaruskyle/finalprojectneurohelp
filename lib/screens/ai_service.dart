@@ -30,7 +30,6 @@ class AIService {
     "no reason to live", "die"
   ];
 
-  /// Detect suicidal content
   bool detectSuicidalRisk(String text) {
     final lower = text.toLowerCase();
     for (final keyword in suicidalKeywords) {
@@ -39,7 +38,6 @@ class AIService {
     return false;
   }
 
-  /// Predict mood
   Future<String> predictMood(String userText) async {
     try {
       if (detectSuicidalRisk(userText)) return "⚠️ Suicidal/Warning";
@@ -59,7 +57,6 @@ class AIService {
     }
   }
 
-  /// Chatbot conversational reply with context
   Future<String> getAIResponse(String conversationContext) async {
     try {
       if (detectSuicidalRisk(conversationContext)) {
@@ -85,7 +82,6 @@ class AIService {
     }
   }
 
-  /// Get music/podcast links based on mood and category
   Future<List<String>> getMusicForMood(String mood, String category) async {
     try {
       if (detectSuicidalRisk(mood)) {

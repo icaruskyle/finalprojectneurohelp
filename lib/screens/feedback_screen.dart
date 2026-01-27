@@ -43,7 +43,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
     overlay.insert(overlayEntry);
 
-    // Automatically remove after 3 seconds
     Future.delayed(const Duration(seconds: 3)).then((_) => overlayEntry.remove());
   }
 
