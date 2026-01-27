@@ -71,13 +71,17 @@ class _MusicScreenState extends State<MusicScreen> {
   @override
   void initState() {
     super.initState();
+
     _audioPlayer = AudioPlayer();
+
     _audioPlayer!.onDurationChanged.listen((d) {
       setState(() => duration = d);
     });
+
     _audioPlayer!.onPositionChanged.listen((p) {
       setState(() => position = p);
     });
+
     _audioPlayer!.onPlayerComplete.listen((_) {
       setState(() {
         isPlaying = false;
@@ -87,10 +91,18 @@ class _MusicScreenState extends State<MusicScreen> {
     });
 
     barHeights = List<double>.generate(visualizerBars, (_) => 4.0);
-    loadRecentlyPlayed();
-    detectMood();
+
+    _init();
   }
 
+  Future<void> _init() async {
+    await loadRecentlyPlayed();
+    await detectMood();
+
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
+  }
   @override
   void dispose() {
     visualizerTimer?.cancel();
@@ -99,29 +111,40 @@ class _MusicScreenState extends State<MusicScreen> {
   }
 
   Future<void> detectMood() async {
-    setState(() => isLoading = true);
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.uid)
           .collection('daily_journal')
           .orderBy('date', descending: true)
-          .limit(1)
+          .limit(5)
           .get();
-      final journalText = snapshot.docs.isNotEmpty
-          ? snapshot.docs.first.data()['text'] ?? ''
-          : '';
-      final mood = await ai.predictMood(journalText);
-      setState(() {
 
-        currentMood = mood;
-        isLoading = false;
-      });
-    } catch (_) {
-      setState(() {
-        currentMood = '🙂 Neutral';
-        isLoading = false;
-      });
+      if (snapshot.docs.isEmpty) {
+        setState(() => currentMood = '🙂 Neutral');
+        return;
+      }
+
+      final texts = snapshot.docs
+          .map((d) => d.data()['text']?.toString() ?? '')
+          .where((t) => t.trim().isNotEmpty)
+          .toList();
+
+      if (texts.isEmpty) {
+        setState(() => currentMood = '🙂 Neutral');
+        return;
+      }
+
+      final combinedText = texts.join('\n');
+
+      print('Mood input length: ${combinedText.length}');
+      print(combinedText);
+
+      final mood = await ai.predictMood(combinedText);
+      setState(() => currentMood = mood);
+    } catch (e) {
+      print('detectMood error: $e');
+      setState(() => currentMood = '🙂 Neutral');
     }
   }
 
