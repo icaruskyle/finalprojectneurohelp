@@ -66,6 +66,12 @@ flutter:
     - assets/audio/Healing.mp3
     - assets/sign_up.png
     - assets/sign_in.png
+    - assets/music/calm/
+    - assets/music/ambient/
+    - assets/music/lofi/
+    - assets/music/soundscapes/
+    - assets/music/podcast/
+    - assets/music/meditation/
 
 
 flutter_launcher_icons:
